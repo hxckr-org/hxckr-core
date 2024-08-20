@@ -39,9 +39,9 @@ The project is organized into three main layers:
 hxckr-core/
 │
 ├── src/
-│   ├── application/    # Application Layer
+│   ├── app/            # Application Layer
 │   ├── domain/         # Domain Layer
-│   ├── infrastructure/ # Infrastructure Layer
+│   ├── service/        # Infrastructure Layer
 │   ├── main.rs         # Entry point
 │
 ├── tests/              # Integration tests

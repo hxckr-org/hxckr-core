@@ -20,34 +20,37 @@ The project is organized into three main layers:
 
 ## Getting Started
 
-1. **Clone the Repository**:
+### Prerequisites
+- Rust and Cargo are required to build and run the application(This is provided via nix). You can also install them using [rustup](https://rustup.rs/).
+- PostgreSQL is used as the database for this project.(This is provided via docker compose using nix flakes)
+- Nix flake is used to manage the development environment. You can install it using the instructions [here](https://nixos.org/download.html).
+- Docker is used to manage the database. You can install it using the instructions [here](https://docs.docker.com/get-docker/).
+- Diesel CLI is used to manage the database schema. (This is provided via nix flakes)
 
+1. **Clone the Repository**:
    ```bash
    git clone https://github.com/extheoisah/hxckr-core.git
    cd hxckr-core
    ```
 
-2. **Run the Application**:
-
+2. **Setup the Development Environment**:
+> before running the following command, make sure you have nix-package manager installed on your system. If not, you can install it using the instructions [here](https://nixos.org/download.html).
+> You should configure your nix to use flake by setting your ~/.config/nix/nix.conf file to use flake as follows:
+```plaintext
+experimental-features = nix-command flakes
+```
+then run the following command to install the dependencies and setup the development environment in th project directory:
+   ```bash
+    nix develop
+   ```
+else you can run the following command to install the dependencies and setup the development environment:
+   ```bash
+   nix develop --experimental-features 'nix-command flakes'
+   ```
+3. **Run the Application**:
    ```bash
    cargo run
    ```
-
-## Project Structure
-
-```plaintext
-hxckr-core/
-│
-├── src/
-│   ├── app/            # Application Layer
-│   ├── domain/         # Domain Layer
-│   ├── service/        # Infrastructure Layer
-│   ├── main.rs         # Entry point
-│
-├── tests/              # Integration tests
-├── Cargo.toml          # Cargo configuration
-└── README.md           # Project documentation
-```
 
 ## Contributing
 

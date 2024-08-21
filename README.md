@@ -21,11 +21,11 @@ The project is organized into three main layers:
 ## Getting Started
 
 ### Prerequisites
-- Rust and Cargo are required to build and run the application(This is provided via nix). You can also install them using [rustup](https://rustup.rs/).
-- PostgreSQL is used as the database for this project.(This is provided via docker compose using nix flakes)
-- Nix flake is used to manage the development environment. You can install it using the instructions [here](https://nixos.org/download.html).
-- Docker is used to manage the database. You can install it using the instructions [here](https://docs.docker.com/get-docker/).
-- Diesel CLI is used to manage the database schema. (This is provided via nix flakes)
+- Rust and Cargo are required to build and run the application (this is provided via Nix). You can also install them globally using [rustup](https://rustup.rs/).
+- PostgreSQL is used as the database for this project (this is provided via docker compose using Nix flakes).
+- Nix flake is used to manage the dependencies in the development environment. You can install it following the instructions [here](https://nixos.org/download.html).
+- Docker is used to manage the database. You can install it following the instructions [here](https://docs.docker.com/get-docker/).
+- Diesel CLI is used to manage the database schema (this is provided via Nix flakes).
 
 1. **Clone the Repository**:
    ```bash
@@ -34,19 +34,24 @@ The project is organized into three main layers:
    ```
 
 2. **Setup the Development Environment**:
-> before running the following command, make sure you have nix-package manager installed on your system. If not, you can install it using the instructions [here](https://nixos.org/download.html).
+> [!IMPORTANT] 
+> Before running the following command, make sure you have nix-package manager installed on your system. If not, you can install it following the instructions provided [here](https://nixos.org/download.html).
+> [!NOTE]  
 > You should configure your nix to use flake by setting your ~/.config/nix/nix.conf file to use flake as follows:
 ```plaintext
 experimental-features = nix-command flakes
 ```
-then run the following command to install the dependencies and setup the development environment in th project directory:
+
+then run the following command to install the dependencies and setup the development environment in the project directory:
    ```bash
     nix develop
    ```
-else you can run the following command to install the dependencies and setup the development environment:
+
+Alternatively, you can run the following command to install the dependencies and setup the development environment:
    ```bash
    nix develop --experimental-features 'nix-command flakes'
    ```
+
 3. **Run the Application**:
    ```bash
    cargo run

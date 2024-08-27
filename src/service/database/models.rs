@@ -46,3 +46,39 @@ impl NewUser {
         }
     }
 }
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::challenges)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Challenge {
+    pub id: Uuid,
+    pub title: String,
+    pub description: String,
+    pub repo_url: String,
+    pub difficulty: String,
+    pub mode: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+impl Challenge {
+    pub fn new(
+        title: &str,
+        description: &str,
+        repo_url: &str,
+        difficulty: &str,
+        mode: &str,
+    ) -> Self {
+        Challenge {
+            id: Uuid::new_v4(),
+            title: title.to_lowercase().trim().to_string(),
+            description: description.to_string(),
+            repo_url: repo_url.to_string(),
+            difficulty: difficulty.to_lowercase(),
+            mode: mode.to_lowercase(),
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        }
+    }
+}

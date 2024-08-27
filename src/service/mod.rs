@@ -5,4 +5,5 @@ pub mod database {
 
 pub mod repository {
     pub mod users;
+    pub mod challenge;
 }

@@ -10,6 +10,12 @@ pub enum RepositoryError {
     UserNotFound,
     #[error("Failed to get user")]
     FailedToGetUser(#[from] GetUserError),
+    #[error("Failed to create challenge")]
+    FailedToCreateChallenge(#[from] CreateChallengeError),
+    #[error("Challenge not found")]
+    ChallengeNotFound,
+    #[error("Failed to get challenge")]
+    FailedToGetChallenge(#[from] GetChallengeError),
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`
@@ -23,3 +29,11 @@ pub struct CreateUserError(#[from] pub diesel::result::Error);
 #[derive(Error, Debug)]
 #[error("Database error while getting user: {0}")]
 pub struct GetUserError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating challenge: {0}")]
+pub struct CreateChallengeError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting challenge: {0}")]
+pub struct GetChallengeError(#[from] pub diesel::result::Error);

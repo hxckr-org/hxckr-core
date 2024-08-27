@@ -1,10 +1,6 @@
 use anyhow::Result;
 use env_logger::Env;
-use service::{
-    database::{conn::establish_connection, models::Challenge},
-    repository::challenge::{create_challenge, get_challenge},
-};
-use shared::primitives::{ChallengeMode, Difficulty};
+use service::{database::conn::establish_connection, repository::challenge::get_challenge};
 
 mod schema;
 mod service;
@@ -15,14 +11,14 @@ fn main() -> Result<()> {
 
     let connection = &mut establish_connection()?;
 
-    // let new_user_1 = NewUser::new(
+    // let new_user_1 = User::new(
     //     "extheo",
     //     "test@test.com",
     //     "extheoisah",
     //     "https://avatars.githubusercontent.com/u/60826700?v=4",
     //     "admin",
     // );
-    // let new_user_2 = NewUser::new(
+    // let new_user_2 = User::new(
     //     "extheo2",
     //     "test2@test.com",
     //     "extheoisah2",

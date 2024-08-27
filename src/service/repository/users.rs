@@ -1,11 +1,11 @@
 use crate::schema::users;
-use crate::service::database::models::{NewUser, User};
+use crate::service::database::models::User;
 use crate::shared::errors::{CreateUserError, GetUserError, RepositoryError::*};
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
 
-pub fn create_user(connection: &mut PgConnection, user: NewUser) -> Result<User> {
+pub fn create_user(connection: &mut PgConnection, user: User) -> Result<User> {
     use crate::schema::users::dsl::{email, github_username, username};
 
     let existing_user = users::table

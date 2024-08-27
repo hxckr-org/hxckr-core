@@ -48,6 +48,8 @@
           diesel-cli
           openssl
           pkg-config
+          libiconv
+          postgresql
         ];
 
         shellHook = ''
@@ -70,6 +72,10 @@
           echo "Setting up Rust"
           rustup default stable
           export PATH="$HOME/.cargo/bin:$PATH"
+
+          # Ensure linker finds libiconv and libpq
+          export LIBRARY_PATH="${pkgs.libiconv.out}/lib:${pkgs.postgresql.out}/lib:$LIBRARY_PATH"
+          export PKG_CONFIG_PATH="${pkgs.libiconv.out}/lib/pkgconfig:${pkgs.postgresql.out}/lib/pkgconfig:$PKG_CONFIG_PATH"
 
           # Diesel CLI setup
           export DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"

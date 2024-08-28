@@ -30,6 +30,8 @@ diesel::table! {
         challenge_id -> Uuid,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        #[max_length = 255]
+        status -> Varchar,
     }
 }
 

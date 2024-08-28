@@ -45,6 +45,7 @@ pub struct Exercise {
     pub challenge_id: Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub status: String,
 }
 
 #[derive(Queryable, Insertable, Selectable, Debug)]

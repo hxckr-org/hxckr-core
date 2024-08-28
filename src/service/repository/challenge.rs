@@ -5,6 +5,7 @@ use crate::shared::errors::{
     CreateChallengeError,
     RepositoryError::{ChallengeNotFound, FailedToCreateChallenge, FailedToGetChallenge},
 };
+use crate::shared::primitives::{ChallengeMode, Difficulty};
 use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
@@ -16,16 +17,16 @@ impl Challenge {
         title: &str,
         description: &str,
         repo_url: &str,
-        difficulty: &str,
-        mode: &str,
+        difficulty: Difficulty,
+        mode: ChallengeMode,
     ) -> Self {
         Challenge {
             id: Uuid::new_v4(),
             title: title.to_lowercase().trim().to_string(),
             description: description.to_string(),
             repo_url: repo_url.to_string(),
-            difficulty: difficulty.to_lowercase(),
-            mode: mode.to_lowercase(),
+            difficulty: difficulty.to_str().to_string(),
+            mode: mode.to_str().to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }

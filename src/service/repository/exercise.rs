@@ -4,6 +4,7 @@ use crate::shared::errors::{
     CreateExerciseError, GetExerciseError,
     RepositoryError::{FailedToCreateExercise, FailedToGetExercise},
 };
+use crate::shared::primitives::{Difficulty, Status};
 use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
@@ -14,17 +15,19 @@ impl Exercise {
     pub fn new(
         title: &str,
         description: &str,
-        difficulty: &str,
+        difficulty: Difficulty,
         test_runner: &str,
+        status: Status,
         challenge_id: &str,
     ) -> Self {
         Exercise {
             id: Uuid::new_v4(),
             title: title.to_lowercase().trim().to_string(),
             description: description.to_string(),
-            difficulty: difficulty.to_lowercase(),
+            difficulty: difficulty.to_str().to_string(),
             test_runner: test_runner.to_string(),
             challenge_id: string_to_uuid(challenge_id).unwrap(),
+            status: status.to_str().to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }

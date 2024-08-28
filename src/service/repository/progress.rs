@@ -5,6 +5,7 @@ use crate::shared::errors::{
     RepositoryError::{FailedToCreateProgress, FailedToGetProgress, FailedToUpdateProgress},
     UpdateProgressError,
 };
+use crate::shared::primitives::Status;
 use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
@@ -12,12 +13,12 @@ use log::error;
 use uuid::Uuid;
 
 impl Progress {
-    pub fn new(user_id: &str, challenge_id: &str, status: &str) -> Self {
+    pub fn new(user_id: &str, challenge_id: &str, status: Status) -> Self {
         Progress {
             id: Uuid::new_v4(),
             user_id: string_to_uuid(user_id).unwrap(),
             challenge_id: string_to_uuid(challenge_id).unwrap(),
-            status: status.to_string(),
+            status: status.to_str().to_string(),
             progress_details: None,
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),

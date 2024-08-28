@@ -1,6 +1,6 @@
 use anyhow::Result;
 use env_logger::Env;
-use service::{database::conn::establish_connection, repository::exercise::get_exercise};
+use service::database::{conn::establish_connection, models::Exercise};
 
 mod schema;
 mod service;
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
     //     }
     // }
 
-    let exercise = match get_exercise(
+    let exercise = match Exercise::get_exercise(
         connection,
         None,
         Some("0d420322-7d8a-4fbd-9a78-6636da0f3ec5".to_string()),

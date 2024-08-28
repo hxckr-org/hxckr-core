@@ -5,10 +5,10 @@ use crate::shared::errors::{
     CreateChallengeError,
     RepositoryError::{ChallengeNotFound, FailedToCreateChallenge, FailedToGetChallenge},
 };
+use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
-use uuid::Uuid;
 
 pub fn create_challenge(connection: &mut PgConnection, challenge: Challenge) -> Result<Challenge> {
     match diesel::insert_into(challenges_table)
@@ -25,7 +25,7 @@ pub fn create_challenge(connection: &mut PgConnection, challenge: Challenge) -> 
 }
 
 pub fn get_challenge(connection: &mut PgConnection, id: String) -> Result<Option<Challenge>> {
-    let uuid = Uuid::parse_str(&id).map_err(|e| {
+    let uuid = string_to_uuid(&id).map_err(|e| {
         error!("Error parsing UUID: {}", e);
         anyhow::anyhow!("Challenge ID is not valid")
     })?;

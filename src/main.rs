@@ -1,6 +1,6 @@
 use anyhow::Result;
 use env_logger::Env;
-use service::{database::conn::establish_connection, repository::challenge::get_challenge};
+use service::{database::conn::establish_connection, repository::exercise::get_exercise};
 
 mod schema;
 mod service;
@@ -51,16 +51,52 @@ fn main() -> Result<()> {
     //     }
     // };
     // println!("Challenge created: {:?}", challenge);
-    let challenge = match get_challenge(
+    // let challenge = match get_challenge(
+    //     connection,
+    //     "00000000-0000-0000-0000-000000000000".to_string(),
+    // ) {
+    //     Ok(challenge) => challenge,
+    //     Err(e) => {
+    //         println!("Error getting challenge: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("Challenge: {:?}", challenge);
+
+    // let new_exercise_1 = Exercise::new(
+    //     "Exercise 1",
+    //     "Exercise 1 description",
+    //     Difficulty::Easy.to_str(),
+    //     "https://github.com/extheo/extheo/tree/main/challenges/challenge_1/exercise_1",
+    //     "0d420322-7d8a-4fbd-9a78-6636da0f3ec5",
+    // );
+
+    // let new_exercise_2 = Exercise::new(
+    //     "Exercise 2",
+    //     "Exercise 2 description",
+    //     Difficulty::Easy.to_str(),
+    //     "https://github.com/extheo/extheo/tree/main/challenges/challenge_1/exercise_2",
+    //     "0d420322-7d8a-4fbd-9a78-6636da0f3ec5",
+    // );
+
+    // for new_exercise in [new_exercise_1, new_exercise_2] {
+    //     match create_exercise(connection, new_exercise) {
+    //         Ok(exercise) => println!("Exercise created successfully: {:?}", exercise),
+    //         Err(e) => println!("Error creating exercise: {}", e),
+    //     }
+    // }
+
+    let exercise = match get_exercise(
         connection,
-        "00000000-0000-0000-0000-000000000000".to_string(),
+        None,
+        Some("0d420322-7d8a-4fbd-9a78-6636da0f3ec5".to_string()),
     ) {
-        Ok(challenge) => challenge,
+        Ok(exercise) => exercise,
         Err(e) => {
-            println!("Error getting challenge: {}", e);
+            println!("Error getting exercise: {}", e);
             return Err(e);
         }
     };
-    println!("Challenge: {:?}", challenge);
+    println!("Exercise: {:?}", exercise);
     Ok(())
 }

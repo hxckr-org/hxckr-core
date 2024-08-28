@@ -18,6 +18,22 @@ diesel::table! {
 }
 
 diesel::table! {
+    exercises (id) {
+        id -> Uuid,
+        #[max_length = 255]
+        title -> Varchar,
+        description -> Text,
+        #[max_length = 255]
+        difficulty -> Varchar,
+        #[max_length = 255]
+        test_runner -> Varchar,
+        challenge_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -35,7 +51,10 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(exercises -> challenges (challenge_id));
+
 diesel::allow_tables_to_appear_in_same_query!(
     challenges,
+    exercises,
     users,
 );

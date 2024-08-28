@@ -34,6 +34,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    progress (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        challenge_id -> Uuid,
+        status -> Varchar,
+        progress_details -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -52,9 +64,12 @@ diesel::table! {
 }
 
 diesel::joinable!(exercises -> challenges (challenge_id));
+diesel::joinable!(progress -> challenges (challenge_id));
+diesel::joinable!(progress -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     challenges,
     exercises,
+    progress,
     users,
 );

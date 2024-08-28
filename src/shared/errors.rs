@@ -20,6 +20,12 @@ pub enum RepositoryError {
     FailedToCreateExercise(#[from] CreateExerciseError),
     #[error("Failed to get exercise")]
     FailedToGetExercise(#[from] GetExerciseError),
+    #[error("Failed to create progress")]
+    FailedToCreateProgress(#[from] CreateProgressError),
+    #[error("Failed to get progress")]
+    FailedToGetProgress(#[from] GetProgressError),
+    #[error("Failed to update progress")]
+    FailedToUpdateProgress(#[from] UpdateProgressError),
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`
@@ -50,3 +56,14 @@ pub struct CreateExerciseError(#[from] pub diesel::result::Error);
 #[error("Database error while getting exercise: {0}")]
 pub struct GetExerciseError(#[from] pub diesel::result::Error);
 
+#[derive(Error, Debug)]
+#[error("Database error while creating progress: {0}")]
+pub struct CreateProgressError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting progress: {0}")]
+pub struct GetProgressError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while updating progress: {0}")]
+pub struct UpdateProgressError(#[from] pub diesel::result::Error);

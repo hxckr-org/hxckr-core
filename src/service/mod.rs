@@ -7,4 +7,5 @@ pub mod repository {
     pub mod users;
     pub mod challenge;
     pub mod exercise;
+    pub mod progress;
 }

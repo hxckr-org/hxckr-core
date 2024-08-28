@@ -66,3 +66,28 @@ impl UserRole {
         }
     }
 }
+
+pub enum ProgressStatus {
+    Completed,
+    InProgress,
+    NotStarted,
+}
+
+impl ProgressStatus {
+    pub fn from_str(status: &str) -> Result<ProgressStatus, &'static str> {
+        match status {
+            "completed" => Ok(ProgressStatus::Completed),
+            "in_progress" => Ok(ProgressStatus::InProgress),
+            "not_started" => Ok(ProgressStatus::NotStarted),
+            _ => Err("Invalid progress status"),
+        }
+    }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            ProgressStatus::Completed => "completed",
+            ProgressStatus::InProgress => "in_progress",
+            ProgressStatus::NotStarted => "not_started",
+        }
+    }
+}

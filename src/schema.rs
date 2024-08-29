@@ -60,6 +60,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    sessions (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        token -> Text,
+        #[max_length = 255]
+        provider -> Varchar,
+        created_at -> Timestamp,
+        expires_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     submissions (id) {
         id -> Uuid,
         user_id -> Uuid,
@@ -98,6 +110,7 @@ diesel::joinable!(progress -> challenges (challenge_id));
 diesel::joinable!(progress -> users (user_id));
 diesel::joinable!(repositories -> challenges (challenge_id));
 diesel::joinable!(repositories -> users (user_id));
+diesel::joinable!(sessions -> users (user_id));
 diesel::joinable!(submissions -> exercises (exercise_id));
 diesel::joinable!(submissions -> repositories (repository_id));
 diesel::joinable!(submissions -> users (user_id));
@@ -107,6 +120,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     exercises,
     progress,
     repositories,
+    sessions,
     submissions,
     users,
 );

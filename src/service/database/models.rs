@@ -90,3 +90,16 @@ pub struct Submission {
     pub submitted_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::sessions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Session {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub token: String,
+    pub provider: String,
+    pub created_at: NaiveDateTime,
+    pub expires_at: NaiveDateTime,
+}

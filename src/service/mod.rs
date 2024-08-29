@@ -10,4 +10,5 @@ pub mod repository {
     pub mod progress;
     pub mod repo;
     pub mod submission;
+    pub mod session;
 }

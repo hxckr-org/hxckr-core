@@ -8,4 +8,6 @@ pub mod repository {
     pub mod challenge;
     pub mod exercise;
     pub mod progress;
+    pub mod repo;
+    pub mod submission;
 }

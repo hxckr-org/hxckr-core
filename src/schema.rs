@@ -48,6 +48,34 @@ diesel::table! {
 }
 
 diesel::table! {
+    repositories (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        challenge_id -> Uuid,
+        #[max_length = 255]
+        repo_url -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    submissions (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        exercise_id -> Uuid,
+        #[max_length = 255]
+        commit_id -> Varchar,
+        repository_id -> Uuid,
+        #[max_length = 255]
+        status -> Varchar,
+        feedback -> Nullable<Text>,
+        submitted_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -68,10 +96,17 @@ diesel::table! {
 diesel::joinable!(exercises -> challenges (challenge_id));
 diesel::joinable!(progress -> challenges (challenge_id));
 diesel::joinable!(progress -> users (user_id));
+diesel::joinable!(repositories -> challenges (challenge_id));
+diesel::joinable!(repositories -> users (user_id));
+diesel::joinable!(submissions -> exercises (exercise_id));
+diesel::joinable!(submissions -> repositories (repository_id));
+diesel::joinable!(submissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     challenges,
     exercises,
     progress,
+    repositories,
+    submissions,
     users,
 );

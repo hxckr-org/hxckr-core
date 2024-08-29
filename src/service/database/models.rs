@@ -61,3 +61,32 @@ pub struct Progress {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::repositories)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Repository {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub challenge_id: Uuid,
+    pub repo_url: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::submissions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Submission {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub exercise_id: Uuid,
+    pub commit_id: String,
+    pub repository_id: Uuid,
+    pub status: String,
+    pub feedback: Option<String>,
+    pub submitted_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}

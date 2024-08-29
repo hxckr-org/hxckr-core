@@ -26,11 +26,30 @@ pub enum RepositoryError {
     FailedToGetProgress(#[from] GetProgressError),
     #[error("Failed to update progress")]
     FailedToUpdateProgress(#[from] UpdateProgressError),
+    #[error("Failed to create repository")]
+    FailedToCreateRepository(#[from] CreateRepositoryError),
+    #[error("Failed to get repository")]
+    FailedToGetRepository(#[from] GetRepositoryError),
+    #[error("Failed to create submission")]
+    FailedToCreateSubmission(#[from] CreateSubmissionError),
+    #[error("Failed to get submission")]
+    FailedToGetSubmission(#[from] GetSubmissionError),
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`
 // in the `#[from]` attribute
 // in the `RepositoryError` enum for more than one variant.
+// However, they're all using the same connection, so it's not like
+// they're being used in different contexts.
+// And they provide robust context on the database error which is useful
+// for debugging.
+// E.g.,
+// [2024-08-29T10:08:08Z ERROR hxckr_core::service::repository::submission] Error creating submission: new row for relation "submissions" violates check constraint "submissions_status_check"
+// Error creating submission: Failed to create submission
+// Error: Failed to create submission
+// Caused by:
+//     0: Database error while creating submission: new row for relation "submissions" violates check constraint "submissions_status_check"
+//     1: new row for relation "submissions" violates check constraint "submissions_status_check"
 // TODO: Find a better solution.
 #[derive(Error, Debug)]
 #[error("Database error while creating user: {0}")]
@@ -67,3 +86,19 @@ pub struct GetProgressError(#[from] pub diesel::result::Error);
 #[derive(Error, Debug)]
 #[error("Database error while updating progress: {0}")]
 pub struct UpdateProgressError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating repository: {0}")]
+pub struct CreateRepositoryError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting repository: {0}")]
+pub struct GetRepositoryError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating submission: {0}")]
+pub struct CreateSubmissionError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting submission: {0}")]
+pub struct GetSubmissionError(#[from] pub diesel::result::Error);

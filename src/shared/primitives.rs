@@ -91,3 +91,28 @@ impl Status {
         }
     }
 }
+
+pub enum SubmissionStatus {
+    Pending,
+    Failed,
+    Passed,
+}
+
+impl SubmissionStatus {
+    pub fn from_str(status: &str) -> Result<SubmissionStatus, &'static str> {
+        match status {
+            "pending" => Ok(SubmissionStatus::Pending),
+            "failed" => Ok(SubmissionStatus::Failed),
+            "passed" => Ok(SubmissionStatus::Passed),
+            _ => Err("Invalid submission status"),
+        }
+    }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            SubmissionStatus::Pending => "pending",
+            SubmissionStatus::Failed => "failed",
+            SubmissionStatus::Passed => "passed",
+        }
+    }
+}

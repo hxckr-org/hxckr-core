@@ -1,6 +1,10 @@
 use anyhow::Result;
 use env_logger::Env;
-use service::database::{conn::establish_connection, models::Progress};
+use service::database::{
+    conn::establish_connection,
+    models::{Repository, Submission, User},
+};
+use shared::primitives::SubmissionStatus;
 
 mod schema;
 mod service;
@@ -33,8 +37,13 @@ fn main() -> Result<()> {
     //     }
     // }
 
-    // let user_to_get = get_user(connection, Some("extheo"), None, None);
-    // println!("User to get: {:?}", user_to_get);
+    let user = match User::get_user(connection, Some("extheo"), None, None) {
+        Ok(user) => user,
+        Err(e) => {
+            println!("Error getting user: {}", e);
+            return Err(e);
+        }
+    };
 
     // let new_challenge = Challenge::new(
     //     "Challenge 1",
@@ -113,19 +122,50 @@ fn main() -> Result<()> {
     // };
     // println!("Progress created: {:?}", progress);
 
-    let progress = match Progress::get_progress(
-        connection,
-        None,
-        Some("ac02c63b-ab39-4248-976f-1e2e415a8574".to_string()),
-        None,
-    ) {
-        Ok(progress) => progress,
+    // let progress = match Progress::get_progress(
+    //     connection,
+    //     None,
+    //     Some("ac02c63b-ab39-4248-976f-1e2e415a8574".to_string()),
+    //     None,
+    // ) {
+    //     Ok(progress) => progress,
+    //     Err(e) => {
+    //         println!("Error getting progress: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("Progress found: {:?}", progress);
+
+    let new_repository = Repository::new(
+        &user.id.to_string(),
+        "0d420322-7d8a-4fbd-9a78-6636da0f3ec5",
+        "https://github.com/extheo/extheo",
+    );
+
+    let repository = match Repository::create_repo(connection, new_repository) {
+        Ok(repository) => repository,
         Err(e) => {
-            println!("Error getting progress: {}", e);
+            println!("Error creating repository: {}", e);
             return Err(e);
         }
     };
-    println!("Progress found: {:?}", progress);
+    println!("Repository created: {:?}", repository);
 
+    let new_submission = Submission::new(
+        "03c985c7-2923-4a9c-ac75-700bc6bc6a8b",
+        &user.id.to_string(),
+        SubmissionStatus::Pending,
+        &repository.id.to_string(),
+        "03c985c729234a9cac75700bc6bc6a8b",
+    );
+
+    let submission = match Submission::create_submission(connection, new_submission) {
+        Ok(submission) => submission,
+        Err(e) => {
+            println!("Error creating submission: {}", e);
+            return Err(e);
+        }
+    };
+    println!("Submission created: {:?}", submission);
     Ok(())
 }

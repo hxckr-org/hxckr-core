@@ -36,7 +36,7 @@ fn main() -> Result<()> {
     //     }
     // }
 
-    let user = match User::get_user(connection, Some("extheo"), None, None) {
+    let user = match User::get_user(connection, Some("extheo2"), None, None) {
         Ok(user) => user,
         Err(e) => {
             println!("Error getting user: {}", e);
@@ -167,7 +167,7 @@ fn main() -> Result<()> {
     // };
     // println!("Submission created: {:?}", submission);
 
-    // let new_leaderboard = Leaderboard::new(&user.id.to_string(), None, 100);
+    // let new_leaderboard = Leaderboard::new(&user.id.to_string(), None, 200);
 
     // let leaderboard = match Leaderboard::create(connection, new_leaderboard) {
     //     Ok(leaderboard) => leaderboard,
@@ -178,19 +178,19 @@ fn main() -> Result<()> {
     // };
     // println!("Leaderboard created: {:?}", leaderboard);
 
-    // let user_leaderboard = match Leaderboard::get_leaderboard(connection, Some(user.id.to_string()))
-    // {
-    //     Ok(leaderboard) => leaderboard,
-    //     Err(e) => {
-    //         println!("Error getting leaderboard: {}", e);
-    //         return Err(e);
-    //     }
-    // };
-    // println!("user leaderboard: {:?}", &user_leaderboard);
+    let user_leaderboard = match Leaderboard::get_leaderboard(connection, Some(user.id.to_string()))
+    {
+        Ok(leaderboard) => leaderboard,
+        Err(e) => {
+            println!("Error getting leaderboard: {}", e);
+            return Err(e);
+        }
+    };
+    println!("user leaderboard: {:?}", &user_leaderboard);
 
     let data = r#"
         {
-            "achievement_1": true,
+            "achievement_1": false,
             "achievement_2": false,
             "achievement_3": [
                 "achievement_3_1",

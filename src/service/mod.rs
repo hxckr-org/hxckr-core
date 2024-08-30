@@ -12,4 +12,5 @@ pub mod repository {
     pub mod submission;
     pub mod session;
     pub mod leaderboard;
+    pub mod badge;
 }

@@ -1,5 +1,5 @@
 use crate::schema::leaderboard::table as leaderboard_table;
-use crate::service::database::models::Leaderboard;
+use crate::service::database::models::{Leaderboard, NewLeaderboard};
 use crate::shared::errors::{
     CreateLeaderboardError, GetLeaderboardError,
     RepositoryError::{
@@ -13,9 +13,8 @@ use diesel::prelude::*;
 use log::error;
 
 impl Leaderboard {
-    pub fn new(user_id: &str, achievements: Option<serde_json::Value>, score: i32) -> Self {
-        Leaderboard {
-            id: Default::default(),
+    pub fn new(user_id: &str, achievements: Option<serde_json::Value>, score: i32) -> NewLeaderboard {
+        NewLeaderboard {
             user_id: string_to_uuid(user_id).unwrap(),
             score,
             achievements,
@@ -26,7 +25,7 @@ impl Leaderboard {
 
     pub fn create(
         connection: &mut PgConnection,
-        new_leaderboard: Leaderboard,
+        new_leaderboard: NewLeaderboard,
     ) -> Result<Leaderboard> {
         let leaderboard = new_leaderboard
             .insert_into(leaderboard_table)

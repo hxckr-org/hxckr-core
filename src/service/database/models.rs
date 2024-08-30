@@ -117,6 +117,16 @@ pub struct Leaderboard {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::leaderboard)]
+pub struct NewLeaderboard {
+    pub user_id: Uuid,
+    pub score: i32,
+    pub achievements: Option<serde_json::Value>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
 #[derive(Queryable, Insertable, Selectable, Debug)]
 #[diesel(table_name = crate::schema::badges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -129,12 +139,30 @@ pub struct Badge {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::badges)]
+pub struct NewBadge {
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
 #[derive(Queryable, Insertable, Selectable, Debug)]
 #[diesel(table_name = crate::schema::user_badges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]
 pub struct UserBadge {
     pub id: i32,
+    pub user_id: Uuid,
+    pub badge_id: i32,
+    pub awarded_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::user_badges)]
+pub struct NewUserBadge {
     pub user_id: Uuid,
     pub badge_id: i32,
     pub awarded_at: NaiveDateTime,

@@ -40,6 +40,14 @@ pub enum RepositoryError {
     FailedToGetLeaderboard(#[from] GetLeaderboardError),
     #[error("Failed to update leaderboard")]
     FailedToUpdateLeaderboard(#[from] UpdateLeaderboardError),
+    #[error("Failed to create badge")]
+    FailedToCreateBadge(#[from] CreateBadgeError),
+    #[error("Failed to get badge")]
+    FailedToGetBadge(#[from] GetBadgeError),
+    #[error("Failed to create user badge")]
+    FailedToCreateUserBadge(#[from] CreateUserBadgeError),
+    #[error("Failed to get user badge")]
+    FailedToGetUserBadge(#[from] GetUserBadgeError),
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`
@@ -128,3 +136,11 @@ pub struct CreateBadgeError(#[from] pub diesel::result::Error);
 #[derive(Error, Debug)]
 #[error("Database error while getting badge: {0}")]
 pub struct GetBadgeError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating user badge: {0}")]
+pub struct CreateUserBadgeError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting user badge: {0}")]
+pub struct GetUserBadgeError(#[from] pub diesel::result::Error);

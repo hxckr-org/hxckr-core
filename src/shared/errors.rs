@@ -34,6 +34,12 @@ pub enum RepositoryError {
     FailedToCreateSubmission(#[from] CreateSubmissionError),
     #[error("Failed to get submission")]
     FailedToGetSubmission(#[from] GetSubmissionError),
+    #[error("Failed to create leaderboard")]
+    FailedToCreateLeaderboard(#[from] CreateLeaderboardError),
+    #[error("Failed to get leaderboard")]
+    FailedToGetLeaderboard(#[from] GetLeaderboardError),
+    #[error("Failed to update leaderboard")]
+    FailedToUpdateLeaderboard(#[from] UpdateLeaderboardError),
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`
@@ -102,3 +108,23 @@ pub struct CreateSubmissionError(#[from] pub diesel::result::Error);
 #[derive(Error, Debug)]
 #[error("Database error while getting submission: {0}")]
 pub struct GetSubmissionError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating leaderboard: {0}")]
+pub struct CreateLeaderboardError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting leaderboard: {0}")]
+pub struct GetLeaderboardError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while updating leaderboard: {0}")]
+pub struct UpdateLeaderboardError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while creating badge: {0}")]
+pub struct CreateBadgeError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while getting badge: {0}")]
+pub struct GetBadgeError(#[from] pub diesel::result::Error);

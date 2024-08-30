@@ -11,4 +11,5 @@ pub mod repository {
     pub mod repo;
     pub mod submission;
     pub mod session;
+    pub mod leaderboard;
 }

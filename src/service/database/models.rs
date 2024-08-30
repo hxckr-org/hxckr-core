@@ -103,3 +103,40 @@ pub struct Session {
     pub created_at: NaiveDateTime,
     pub expires_at: NaiveDateTime,
 }
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::leaderboard)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Leaderboard {
+    pub id: i32,
+    pub user_id: Uuid,
+    pub score: i32,
+    pub achievements: Option<serde_json::Value>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::badges)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct Badge {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Queryable, Insertable, Selectable, Debug)]
+#[diesel(table_name = crate::schema::user_badges)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[allow(dead_code)]
+pub struct UserBadge {
+    pub id: i32,
+    pub user_id: Uuid,
+    pub badge_id: i32,
+    pub awarded_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}

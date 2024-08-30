@@ -2,9 +2,8 @@ use anyhow::Result;
 use env_logger::Env;
 use service::database::{
     conn::establish_connection,
-    models::{Repository, Submission, User},
+    models::{Leaderboard, User},
 };
-use shared::primitives::SubmissionStatus;
 
 mod schema;
 mod service;
@@ -136,36 +135,79 @@ fn main() -> Result<()> {
     // };
     // println!("Progress found: {:?}", progress);
 
-    let new_repository = Repository::new(
-        &user.id.to_string(),
-        "0d420322-7d8a-4fbd-9a78-6636da0f3ec5",
-        "https://github.com/extheo/extheo",
-    );
+    // let new_repository = Repository::new(
+    //     &user.id.to_string(),
+    //     "0d420322-7d8a-4fbd-9a78-6636da0f3ec5",
+    //     "https://github.com/extheo/extheo",
+    // );
 
-    let repository = match Repository::create_repo(connection, new_repository) {
-        Ok(repository) => repository,
-        Err(e) => {
-            println!("Error creating repository: {}", e);
-            return Err(e);
-        }
-    };
-    println!("Repository created: {:?}", repository);
+    // let repository = match Repository::create_repo(connection, new_repository) {
+    //     Ok(repository) => repository,
+    //     Err(e) => {
+    //         println!("Error creating repository: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("Repository created: {:?}", repository);
 
-    let new_submission = Submission::new(
-        "03c985c7-2923-4a9c-ac75-700bc6bc6a8b",
-        &user.id.to_string(),
-        SubmissionStatus::Pending,
-        &repository.id.to_string(),
-        "03c985c729234a9cac75700bc6bc6a8b",
-    );
+    // let new_submission = Submission::new(
+    //     "03c985c7-2923-4a9c-ac75-700bc6bc6a8b",
+    //     &user.id.to_string(),
+    //     SubmissionStatus::Pending,
+    //     &repository.id.to_string(),
+    //     "03c985c729234a9cac75700bc6bc6a8b",
+    // );
 
-    let submission = match Submission::create_submission(connection, new_submission) {
-        Ok(submission) => submission,
-        Err(e) => {
-            println!("Error creating submission: {}", e);
-            return Err(e);
-        }
-    };
-    println!("Submission created: {:?}", submission);
+    // let submission = match Submission::create_submission(connection, new_submission) {
+    //     Ok(submission) => submission,
+    //     Err(e) => {
+    //         println!("Error creating submission: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("Submission created: {:?}", submission);
+
+    // let new_leaderboard = Leaderboard::new(&user.id.to_string(), None, 100);
+
+    // let leaderboard = match Leaderboard::create(connection, new_leaderboard) {
+    //     Ok(leaderboard) => leaderboard,
+    //     Err(e) => {
+    //         println!("Error getting leaderboard: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("Leaderboard created: {:?}", leaderboard);
+
+    // let user_leaderboard = match Leaderboard::get_leaderboard(connection, Some(user.id.to_string()))
+    // {
+    //     Ok(leaderboard) => leaderboard,
+    //     Err(e) => {
+    //         println!("Error getting leaderboard: {}", e);
+    //         return Err(e);
+    //     }
+    // };
+    // println!("user leaderboard: {:?}", &user_leaderboard);
+
+    let data = r#"
+        {
+            "achievement_1": true,
+            "achievement_2": false,
+            "achievement_3": [
+                "achievement_3_1",
+                "achievement_3_2",
+                "achievement_3_3"
+            ]
+        }"#;
+    let v: serde_json::Value = serde_json::from_str(data)?;
+
+    let updated_leaderboard =
+        match Leaderboard::update(connection, &user.id.to_string(), 300, Some(v)) {
+            Ok(leaderboard) => leaderboard,
+            Err(e) => {
+                println!("Error updating leaderboard: {}", e);
+                return Err(e);
+            }
+        };
+    println!("updated leaderboard: {:?}", &updated_leaderboard);
     Ok(())
 }

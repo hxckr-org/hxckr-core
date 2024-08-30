@@ -1,6 +1,17 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    badges (id) {
+        id -> Int4,
+        #[max_length = 255]
+        name -> Varchar,
+        description -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     challenges (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -32,6 +43,17 @@ diesel::table! {
         updated_at -> Timestamp,
         #[max_length = 255]
         status -> Varchar,
+    }
+}
+
+diesel::table! {
+    leaderboard (id) {
+        id -> Int4,
+        user_id -> Uuid,
+        achievements -> Nullable<Jsonb>,
+        score -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -88,6 +110,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    user_badges (id) {
+        id -> Int4,
+        user_id -> Uuid,
+        badge_id -> Int4,
+        awarded_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -106,6 +138,7 @@ diesel::table! {
 }
 
 diesel::joinable!(exercises -> challenges (challenge_id));
+diesel::joinable!(leaderboard -> users (user_id));
 diesel::joinable!(progress -> challenges (challenge_id));
 diesel::joinable!(progress -> users (user_id));
 diesel::joinable!(repositories -> challenges (challenge_id));
@@ -114,13 +147,18 @@ diesel::joinable!(sessions -> users (user_id));
 diesel::joinable!(submissions -> exercises (exercise_id));
 diesel::joinable!(submissions -> repositories (repository_id));
 diesel::joinable!(submissions -> users (user_id));
+diesel::joinable!(user_badges -> badges (badge_id));
+diesel::joinable!(user_badges -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    badges,
     challenges,
     exercises,
+    leaderboard,
     progress,
     repositories,
     sessions,
     submissions,
+    user_badges,
     users,
 );

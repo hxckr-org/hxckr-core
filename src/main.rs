@@ -188,20 +188,20 @@ fn main() -> Result<()> {
     };
     println!("user leaderboard: {:?}", &user_leaderboard);
 
-    let data = r#"
-        {
-            "achievement_1": false,
-            "achievement_2": false,
-            "achievement_3": [
-                "achievement_3_1",
-                "achievement_3_2",
-                "achievement_3_3"
-            ]
-        }"#;
-    let v: serde_json::Value = serde_json::from_str(data)?;
+    // let data = r#"
+    //     {
+    //         "achievement_1": false,
+    //         "achievement_2": false,
+    //         "achievement_3": [
+    //             "achievement_3_1",
+    //             "achievement_3_2",
+    //             "achievement_3_3"
+    //         ]
+    //     }"#;
+    // let v: serde_json::Value = serde_json::from_str(data)?;
 
     let updated_leaderboard =
-        match Leaderboard::update(connection, &user.id.to_string(), 300, Some(v)) {
+        match Leaderboard::update(connection, &user.id.to_string(), Some(500), None) {
             Ok(leaderboard) => leaderboard,
             Err(e) => {
                 println!("Error updating leaderboard: {}", e);

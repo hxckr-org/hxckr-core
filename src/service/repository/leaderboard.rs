@@ -13,7 +13,11 @@ use diesel::prelude::*;
 use log::error;
 
 impl Leaderboard {
-    pub fn new(user_id: &str, achievements: Option<serde_json::Value>, score: i32) -> NewLeaderboard {
+    pub fn new(
+        user_id: &str,
+        achievements: Option<serde_json::Value>,
+        score: i32,
+    ) -> NewLeaderboard {
         NewLeaderboard {
             user_id: string_to_uuid(user_id).unwrap(),
             score,
@@ -77,12 +81,11 @@ impl Leaderboard {
     pub fn update(
         connection: &mut PgConnection,
         user_id: &str,
-        new_score: i32,
+        new_score: Option<i32>,
         new_achievements: Option<serde_json::Value>,
     ) -> Result<Leaderboard> {
         use crate::schema::leaderboard::dsl::{
-            achievements as achievements_col, score as score_col, updated_at as updated_at_col,
-            user_id as user_id_col,
+            achievements as achievements_col, score as score_col, user_id as user_id_col,
         };
 
         let user_id_uuid = string_to_uuid(user_id).map_err(|e| {
@@ -90,20 +93,47 @@ impl Leaderboard {
             anyhow::anyhow!("User ID is not valid")
         })?;
 
-        let updated_leaderboard =
-            diesel::update(leaderboard_table.filter(user_id_col.eq(user_id_uuid)))
-                .set((
-                    score_col.eq(new_score),
-                    achievements_col.eq(serde_json::to_value(new_achievements).unwrap()),
-                    updated_at_col.eq(chrono::Utc::now().naive_utc()),
-                ))
-                .returning(Leaderboard::as_returning())
-                .get_result(connection)
-                .map_err(|e| {
-                    error!("Error updating leaderboard: {}", e);
-                    FailedToUpdateLeaderboard(UpdateLeaderboardError(e))
-                })?;
-
-        Ok(updated_leaderboard)
+        match (new_score, new_achievements) {
+            (Some(new_score), Some(new_achievements)) => {
+                let updated_leaderboard =
+                    diesel::update(leaderboard_table.filter(user_id_col.eq(user_id_uuid)))
+                        .set((
+                            score_col.eq(new_score),
+                            achievements_col.eq(new_achievements),
+                        ))
+                        .returning(Leaderboard::as_returning())
+                        .get_result(connection)
+                        .map_err(|e| {
+                            error!("Error updating leaderboard: {}", e);
+                            FailedToUpdateLeaderboard(UpdateLeaderboardError(e))
+                        })?;
+                Ok(updated_leaderboard)
+            }
+            (Some(new_score), None) => {
+                let updated_leaderboard =
+                    diesel::update(leaderboard_table.filter(user_id_col.eq(user_id_uuid)))
+                        .set((score_col.eq(new_score),))
+                        .returning(Leaderboard::as_returning())
+                        .get_result(connection)
+                        .map_err(|e| {
+                            error!("Error updating leaderboard: {}", e);
+                            FailedToUpdateLeaderboard(UpdateLeaderboardError(e))
+                        })?;
+                Ok(updated_leaderboard)
+            }
+            (None, Some(new_achievements)) => {
+                let updated_leaderboard =
+                    diesel::update(leaderboard_table.filter(user_id_col.eq(user_id_uuid)))
+                        .set((achievements_col.eq(new_achievements),))
+                        .returning(Leaderboard::as_returning())
+                        .get_result(connection)
+                        .map_err(|e| {
+                            error!("Error updating leaderboard: {}", e);
+                            FailedToUpdateLeaderboard(UpdateLeaderboardError(e))
+                        })?;
+                Ok(updated_leaderboard)
+            }
+            (None, None) => Err(anyhow::anyhow!("No new score or achievements provided")),
+        }
     }
 }

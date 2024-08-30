@@ -53,6 +53,7 @@ Alternatively, you can run the following command to install the dependencies and
    ```
 
 3.**Run the Application**:
+If you are running the application for the first time, please follow the instructions [here](CONTRIBUTING.md) to setup the database. Then run the following command to start the application:
 
    ```bash
    cargo run
@@ -60,4 +61,4 @@ Alternatively, you can run the following command to install the dependencies and
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome! Please open an issue or submit a pull request. For more details, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.

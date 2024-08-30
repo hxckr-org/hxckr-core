@@ -49,3 +49,31 @@ To run the migrations, run the following command:
 ```bash
 diesel migration run
 ```
+
+## Running the Application
+
+To run the application, run the following command:
+
+```bash
+cargo run
+```
+
+This will start the application.
+
+To run the application with hot reloading, run the following command:
+
+```bash
+cargo watch -x run
+```
+
+To run the application with helpful debug information, run the following command:
+
+```bash
+cargo run -- --debug
+```
+
+or
+
+```bash
+RUST_LOG=debug cargo run
+```

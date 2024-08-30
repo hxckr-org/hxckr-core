@@ -1,4 +1,4 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE submissions;
 DROP TABLE repositories;
+DROP TABLE submissions;
 

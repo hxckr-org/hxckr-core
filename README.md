@@ -62,3 +62,37 @@ If you are running the application for the first time, please follow the instruc
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request. For more details, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+## Docker
+
+### Building the Docker Image
+
+To build the Docker image locally:
+
+1. Ensure you have Docker installed on your machine.
+2. Navigate to the project root directory in your terminal.
+3. Build the Docker image:
+   ```
+   docker build -t hxckr-core:local .
+   ```
+
+### Running the Docker Container
+
+To run the Docker container:
+
+```
+docker run -p
+```
+
+## Publishing Docker Images
+
+This project uses GitHub Actions to automatically publish Docker images to DockerHub. If you fork this repository, you'll need to set up the publishing process:
+
+1. Create a DockerHub account if you don't have one.
+2. Create a new repository on DockerHub for your images.
+3. In your GitHub repository settings, add the following secrets:
+   - `DOCKERHUB_USERNAME`: Your DockerHub username
+   - `DOCKERHUB_TOKEN`: A DockerHub access token (create this in your DockerHub account settings)
+4. Update the GitHub Actions workflow file (`.github/workflows/docker-publish.yml`) with your DockerHub repository name.
+
+The workflow will build and push a new Docker image on each push to the main branch and when a new release is created.

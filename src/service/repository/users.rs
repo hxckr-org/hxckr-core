@@ -1,6 +1,7 @@
 use crate::schema::users;
 use crate::service::database::models::User;
 use crate::shared::errors::{CreateUserError, GetUserError, RepositoryError::*};
+use crate::shared::primitives::UserRole;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
@@ -12,7 +13,7 @@ impl User {
         github_username: &str,
         email: &str,
         profile_pic_url: &str,
-        role: &str,
+        role: UserRole,
     ) -> Self {
         User {
             id: Uuid::new_v4(),
@@ -20,13 +21,13 @@ impl User {
             github_username: github_username.to_lowercase(),
             email: email.to_lowercase(),
             profile_pic_url: profile_pic_url.to_string(),
-            role: role.to_lowercase(),
+            role: role.to_str().to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }
     }
 
-    pub fn create_user(connection: &mut PgConnection, user: User) -> Result<User> {
+    pub fn create(connection: &mut PgConnection, user: User) -> Result<User> {
         use crate::schema::users::dsl::{email, github_username, username};
 
         let existing_user = users::table

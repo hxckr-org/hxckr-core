@@ -2,6 +2,8 @@ pub use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RepositoryError {
+    #[error("Bad request: {0}")]
+    BadRequest(String),
     #[error("User with the same username, github username, or email already exists")]
     UserAlreadyExists,
     #[error("Failed to create user")]

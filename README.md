@@ -81,7 +81,7 @@ To build the Docker image locally:
 To run the Docker container:
 
 ```
-docker run -p
+docker run -p 8080:80 -e DATABASE_URL=postgres://real_username:real_password@real_host/real_db hxckr-core:local
 ```
 
 ## Publishing Docker Images

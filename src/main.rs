@@ -1,4 +1,5 @@
 use actix_web::{middleware::Logger, web, App, HttpServer};
+use app::auth::middleware::AuthMiddleware;
 use dotenvy::dotenv;
 use env_logger::Env;
 use service::database::conn::get_connection_pool;
@@ -17,8 +18,8 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            // .wrap(AuthMiddleware) // Apply the auth middleware globally
             .app_data(web::Data::new(pool.clone()))
+            .wrap(AuthMiddleware)
             .wrap(Logger::default())
             .service(web::scope("/api").configure(app::routes::init))
     })

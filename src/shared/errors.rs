@@ -4,6 +4,10 @@ pub use thiserror::Error;
 pub enum RepositoryError {
     #[error("Bad request: {0}")]
     BadRequest(String),
+    #[error("{0}")]
+    NotFound(String),
+    #[error("{0}")]
+    DatabaseError(String),
     #[error("User with the same username, github username, or email already exists")]
     UserAlreadyExists,
     #[error("Failed to create user")]
@@ -50,6 +54,18 @@ pub enum RepositoryError {
     FailedToCreateUserBadge(#[from] CreateUserBadgeError),
     #[error("Failed to get user badge")]
     FailedToGetUserBadge(#[from] GetUserBadgeError),
+}
+
+impl From<diesel::result::Error> for RepositoryError {
+    fn from(err: diesel::result::Error) -> Self {
+        match err {
+            diesel::result::Error::NotFound => RepositoryError::NotFound("Record not found".into()),
+            diesel::result::Error::DatabaseError(kind, info) => {
+                RepositoryError::DatabaseError(format!("Database error: {:?}, {:?}", kind, info))
+            }
+            _ => RepositoryError::DatabaseError("An unknown database error occurred".into()),
+        }
+    }
 }
 
 // Had to add this because I couldn't use the `diesel::result::Error`

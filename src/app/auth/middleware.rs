@@ -1,20 +1,21 @@
 use actix_web::{
     body::{BoxBody, MessageBody},
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
-    web, Error, HttpResponse,
+    web, Error, HttpMessage, HttpResponse,
 };
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 use futures_util::future::LocalBoxFuture;
 use log::{error, warn};
 use serde_json::json;
 use std::future::{ready, Ready};
 use std::task::{Context, Poll};
+use uuid::Uuid;
 
-use crate::service::database::models::Session;
+use crate::service::database::{conn::DbPool, models::Session};
 
-type DbPool = Pool<ConnectionManager<PgConnection>>;
-
+pub struct SessionInfo {
+    token: String,
+    user_id: Uuid,
+}
 pub struct AuthMiddleware;
 
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
@@ -53,7 +54,6 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("route: {:?}", req.path());
         if req.path() == "/api/sign-in" || req.path() == "/api/sign-up" {
             let fut = self.service.call(req);
             return Box::pin(async move {
@@ -79,7 +79,6 @@ where
                 );
             }
         };
-        println!("session token: {:#?}", session_token);
 
         let pool = req
             .app_data::<web::Data<DbPool>>()
@@ -95,10 +94,30 @@ where
             }
         };
 
-        let sess = match Session::get_by_token(&mut conn, session_token) {
-            Ok(session) => session,
+        match Session::get_by_token(&mut conn, session_token) {
+            Ok(session) => {
+                let time_now = chrono::Utc::now().naive_utc();
+                if session.expires_at < time_now {
+                    let error_response = json!({
+                        "status": "error",
+                        "message": "Unauthorized. Session token expired!"
+                    });
+                    let response = HttpResponse::Unauthorized()
+                        .content_type("application/json")
+                        .body(error_response.to_string());
+
+                    return Box::pin(async move {
+                        Ok(req.into_response(response).map_into_boxed_body())
+                    });
+                }
+                let session_info = SessionInfo {
+                    token: session.token,
+                    user_id: session.user_id,
+                };
+                req.extensions_mut().insert(session_info)
+            }
             Err(e) => {
-                warn!("Authorized access atempted: {:#?}", e);
+                warn!("Unauthorized access attempted: {:#?}", e);
                 let error_response = json!({
                     "status": "error",
                     "message": "Unauthorized"
@@ -112,7 +131,6 @@ where
                 );
             }
         };
-        println!("session: {:#?}", sess);
 
         let fut = self.service.call(req);
         Box::pin(async move {

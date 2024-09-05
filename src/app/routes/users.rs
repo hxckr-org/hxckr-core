@@ -1,16 +1,9 @@
 use crate::{
-    service::database::models::User,
-    shared::{
-        errors::{CreateUserError, GetUserError, RepositoryError},
-        primitives::UserRole,
-    },
+    service::database::{conn::DbPool, models::User},
+    shared::errors::{GetUserError, RepositoryError},
 };
 use actix_web::{web, HttpResponse, Result, Scope};
 use anyhow::Error as AnyhowError;
-use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    PgConnection,
-};
 
 #[derive(serde::Deserialize)]
 struct UserQuery {
@@ -19,21 +12,8 @@ struct UserQuery {
     github_username: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
-struct NewUser {
-    username: String,
-    github_username: String,
-    email: String,
-    profile_pic_url: String,
-    role: String,
-}
-
-type DbPool = Pool<ConnectionManager<PgConnection>>;
-
 pub fn init() -> Scope {
-    web::scope("/users")
-        .route("", web::get().to(get_user))
-        .route("", web::post().to(create_user))
+    web::scope("/users").route("", web::get().to(get_user))
 }
 
 async fn get_user(
@@ -71,45 +51,4 @@ async fn get_user(
             Box::new(e.to_string()),
         ))),
     })
-}
-
-async fn create_user(
-    user: Result<web::Json<NewUser>, actix_web::Error>,
-    pool: web::Data<DbPool>,
-) -> Result<HttpResponse, RepositoryError> {
-    let user = match user {
-        Ok(user) => {
-            if user.role.to_lowercase() != UserRole::Admin.to_str().to_lowercase()
-                && user.role.to_lowercase() != UserRole::User.to_str().to_lowercase()
-            {
-                return Err(RepositoryError::BadRequest(String::from(
-                    "Invalid role! Must be admin or user",
-                )));
-            }
-            user
-        }
-        Err(e) => return Err(RepositoryError::BadRequest(e.to_string())),
-    };
-
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let new_user = User::new(
-        &user.username,
-        &user.github_username,
-        &user.email,
-        &user.profile_pic_url,
-        UserRole::from_str(&user.role.to_lowercase())
-            .map_err(|e| RepositoryError::BadRequest(e.to_string()))?,
-    );
-
-    User::create(&mut conn, new_user)
-        .map(|user| HttpResponse::Ok().json(user))
-        .map_err(|e: AnyhowError| match e.downcast_ref::<RepositoryError>() {
-            Some(RepositoryError::UserAlreadyExists) => RepositoryError::UserAlreadyExists,
-            _ => RepositoryError::FailedToCreateUser(CreateUserError(
-                diesel::result::Error::DatabaseError(
-                    diesel::result::DatabaseErrorKind::Unknown,
-                    Box::new(e.to_string()),
-                ),
-            )),
-        })
 }

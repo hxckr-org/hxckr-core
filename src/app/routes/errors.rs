@@ -20,6 +20,7 @@ impl ResponseError for RepositoryError {
             RepositoryError::UserAlreadyExists => StatusCode::CONFLICT,
             RepositoryError::UserNotFound => StatusCode::NOT_FOUND,
             RepositoryError::FailedToGetUser(_) => StatusCode::NOT_FOUND,
+            RepositoryError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

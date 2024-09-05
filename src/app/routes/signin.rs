@@ -1,9 +1,12 @@
-use crate::service::database::conn::DbPool;
-use crate::shared::errors::GetUserError;
-use crate::shared::utils::generate_session_token;
 use crate::{
-    service::database::models::{Session, User},
-    shared::errors::RepositoryError,
+    service::database::{
+        conn::DbPool,
+        models::{Session, User},
+    },
+    shared::{
+        errors::{GetUserError, RepositoryError},
+        utils::generate_session_token,
+    },
 };
 use actix_web::{web, HttpResponse, Result, Scope};
 use serde_json::json;

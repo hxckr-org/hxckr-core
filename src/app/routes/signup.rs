@@ -1,15 +1,19 @@
-use crate::service::database::conn::DbPool;
-use crate::shared::utils::generate_session_token;
 use crate::{
-    service::database::models::{Session, User},
+    service::database::{
+        conn::DbPool,
+        models::{Session, User},
+    },
     shared::{
         errors::{CreateUserError, RepositoryError},
         primitives::UserRole,
+        utils::generate_session_token,
     },
 };
 use actix_web::{web, HttpResponse, Result, Scope};
-use diesel::r2d2::PooledConnection;
-use diesel::{r2d2::ConnectionManager, Connection, PgConnection};
+use diesel::{
+    r2d2::{ConnectionManager, PooledConnection},
+    Connection, PgConnection,
+};
 use serde_json::json;
 
 #[derive(serde::Deserialize)]

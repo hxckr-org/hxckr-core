@@ -54,7 +54,10 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        if req.path() == "/api/sign-in" || req.path() == "/api/sign-up" {
+        if req.path() == "/api/sign-in"
+            || req.path() == "/api/sign-up"
+            || req.path() == "/api/health"
+        {
             let fut = self.service.call(req);
             return Box::pin(async move {
                 let res = fut.await?;

@@ -59,6 +59,14 @@ If you are running the application for the first time, please follow the instruc
    cargo run
    ```
 
+The server should be running on http://localhost:4925. To check if the server and database connection is working fine, run:
+
+```bash
+curl --location 'http://localhost:4925/api/health'
+```
+
+You should get a 200 response. If not, please review the steps above and in the contributing guide again or reach out to one of the maintainers for assistance.
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request. For more details, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.

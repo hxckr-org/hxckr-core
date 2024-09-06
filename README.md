@@ -80,7 +80,7 @@ To build the Docker image locally:
 1. Ensure you have Docker installed on your machine.
 2. Navigate to the project root directory in your terminal.
 3. Build the Docker image:
-   ```
+   ```bash
    docker build -t hxckr-core:local .
    ```
 
@@ -88,7 +88,7 @@ To build the Docker image locally:
 
 To run the Docker container:
 
-```
+```bash
 docker run -p 8080:80 -e DATABASE_URL=postgres://real_username:real_password@real_host/real_db hxckr-core:local
 ```
 
@@ -109,24 +109,24 @@ The workflow will build and push a new Docker image on each push to the main bra
 
 ### Spell Checking
 
-To maintain consistent spelling across the project, we use `cspell` for spell checking. Follow these steps to run the spell check locally:
+To maintain consistent spelling across the project, we use the [`typos crate`](https://github.com/crate-ci/typos) for spell checking. Follow these steps to run the spell check locally:
 
-1. Ensure you have Node.js installed on your system.
+1. Ensure you are in the nix shell.
 
-2. Install cspell globally:
+2. Install the typos crate:
 
-   ```
-   npm install -g cspell
+   ```bash
+   cargo install typos-cli
    ```
 
 3. Run the spell check from the root of the project:
 
-   ```
-   cspell "**/*.{md,ts,js,tsx,jsx,rs,toml,yml,yaml}" --config .cspell.json
+   ```bash
+   typos
    ```
 
-4. If there are any spelling issues, cspell will output them to the console.
+4. If there are any spelling issues, typos will output them to the console.
 
-5. Fix any misspellings in your code, or add project-specific terms to the `"words"` array in `.cspell.json` if they are correct for this project.
+5. Fix any misspellings in your code, or add project-specific terms to the `[default.extend-words]` list in [typos.toml](./typos.toml) if they are correct for this project.
 
 Note: Running this check locally before committing can help catch spelling errors early and keep the GitHub Actions checks passing.

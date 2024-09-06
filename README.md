@@ -104,3 +104,29 @@ This project uses GitHub Actions to automatically publish Docker images to Docke
 4. Update the GitHub Actions workflow file (`.github/workflows/docker-publish.yml`) with your DockerHub repository name.
 
 The workflow will build and push a new Docker image on each push to the main branch and when a new release is created.
+
+## Development
+
+### Spell Checking
+
+To maintain consistent spelling across the project, we use `cspell` for spell checking. Follow these steps to run the spell check locally:
+
+1. Ensure you have Node.js installed on your system.
+
+2. Install cspell globally:
+
+   ```
+   npm install -g cspell
+   ```
+
+3. Run the spell check from the root of the project:
+
+   ```
+   cspell "**/*.{md,ts,js,tsx,jsx,rs,toml,yml,yaml}" --config .cspell.json
+   ```
+
+4. If there are any spelling issues, cspell will output them to the console.
+
+5. Fix any misspellings in your code, or add project-specific terms to the `"words"` array in `.cspell.json` if they are correct for this project.
+
+Note: Running this check locally before committing can help catch spelling errors early and keep the GitHub Actions checks passing.

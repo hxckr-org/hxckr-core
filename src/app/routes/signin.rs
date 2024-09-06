@@ -58,18 +58,19 @@ async fn signin(
         ))),
     })?;
 
-    let del_existing_session = Session::get_by_userid(&mut conn, &db_user.id).map(|session| {
+    let del_existing_session = Session::get_by_userid(&mut conn, &db_user.id).and_then(|session| {
         if let Some(existing_session) = session {
-            Session::delete(&mut conn, existing_session.token).map_err(|err| err)
+            Session::delete(&mut conn, existing_session.token)
         } else {
             Ok(0)
         }
     });
-    if del_existing_session.is_err() {
-        return Err(RepositoryError::DatabaseError(
-            "Internal server error".to_string(),
-        ));
-    }
+    if let Err(err) = del_existing_session {
+        return Err(RepositoryError::DatabaseError(format!(
+            "Failed to delete existing session: {}",
+            err
+        )));
+    };
 
     let token = generate_session_token();
     let user_id = db_user.id;

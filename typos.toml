@@ -1,0 +1,5 @@
+[default.extend-words]
+hxckr="hxckr"
+
+[files]
+extend-exclude = ["postgres_data", "target", "migrations", "cargo.lock", "cargo.toml"]

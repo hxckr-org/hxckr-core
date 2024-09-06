@@ -80,7 +80,7 @@ To build the Docker image locally:
 1. Ensure you have Docker installed on your machine.
 2. Navigate to the project root directory in your terminal.
 3. Build the Docker image:
-   ```
+   ```bash
    docker build -t hxckr-core:local .
    ```
 
@@ -88,7 +88,7 @@ To build the Docker image locally:
 
 To run the Docker container:
 
-```
+```bash
 docker run -p 8080:80 -e DATABASE_URL=postgres://real_username:real_password@real_host/real_db hxckr-core:local
 ```
 
@@ -104,3 +104,29 @@ This project uses GitHub Actions to automatically publish Docker images to Docke
 4. Update the GitHub Actions workflow file (`.github/workflows/docker-publish.yml`) with your DockerHub repository name.
 
 The workflow will build and push a new Docker image on each push to the main branch and when a new release is created.
+
+## Development
+
+### Spell Checking
+
+To maintain consistent spelling across the project, we use the [`typos crate`](https://github.com/crate-ci/typos) for spell checking. Follow these steps to run the spell check locally:
+
+1. Ensure you are in the nix shell.
+
+2. Install the typos crate:
+
+   ```bash
+   cargo install typos-cli
+   ```
+
+3. Run the spell check from the root of the project:
+
+   ```bash
+   typos
+   ```
+
+4. If there are any spelling issues, typos will output them to the console.
+
+5. Fix any misspellings in your code, or add project-specific terms to the `[default.extend-words]` list in [typos.toml](./typos.toml) if they are correct for this project.
+
+Note: Running this check locally before committing can help catch spelling errors early and keep the GitHub Actions checks passing.

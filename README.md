@@ -59,13 +59,79 @@ If you are running the application for the first time, please follow the instruc
    cargo run
    ```
 
-The server should be running on http://localhost:4925. To check if the server and database connection is working fine, run:
+The server should be running on [http://localhost:4925](http://localhost:4925). To check if the server and database connection is working fine, run:
 
 ```bash
 curl --location 'http://localhost:4925/api/health'
 ```
 
 You should get a 200 response. If not, please review the steps above and in the contributing guide again or reach out to one of the maintainers for assistance.
+
+### Websocket Server
+
+The server also has a websocket server running on [ws://localhost:4925/ws](ws://localhost:4925/ws). This websocket server is used to send and receive messages between the server and the clients (the [hxckr frontend](https://github.com/extheoisah/hxckr-frontend)).
+The websocket server supports the following message types:
+
+- `Message::Text(String)`: A text message.
+- `Message::Binary(Vec<u8>)`: A binary message.
+
+For development purposes, we have provided a simple websocket library ([wscat](https://github.com/websockets/wscat)) which has been installed in the nix shell. The websocket is behind a middleware that authenticates the user using the session token similar to how the API works. To connect to the websocket server, run the following command:
+
+```bash
+wscat -c ws://localhost:4925/ws -H "x-session-token: <session_token>"
+```
+
+You should see the following output:
+
+```bash
+Connected (press CTRL+C to quit)
+>
+```
+
+You can now send and receive messages to and from the server. You can also use Postman to test the websocket server.
+
+### Webhooks
+
+The server also has a webhook server running on [http://localhost:4925/webhook](http://localhost:4925/webhook). This webhook server is used to receive webhook events from the [git-service](https://github.com/extheoisah/hxckr-infra/tree/main/git-service) which is responsible for managing the git repositories and the [test runners](https://github.com/Extheoisah/hxckr-test-runners).
+
+The webhook server currently supports two event types:
+
+- `push`: This event is triggered when a push is made to a repository.
+- `test_result`: This event is triggered when a test runner has finished running the tests for an exercise submission.
+
+The webhook server expects the following payload:
+
+- `event_type`: The type of event.
+- `payload`: The payload of the event.
+
+For `push` event:
+
+```json
+{
+  "event_type": "push",
+  "payload": {
+    "repoUrl": "https://github.com/extheoisah/hxckr-core.git",
+    "commitHash": "abc123",
+    "branchUrl": "https://github.com/extheoisah/hxckr-core/tree/feature/add-test-runner"
+  }
+}
+```
+
+For `test_result` event:
+
+```json
+{
+  "event_type": "test_result",
+  "payload": {
+    "exerciseId": "1",
+    "testName": "test_name",
+    "outcome": "pass" | "fail",
+    "error": "error message",
+    "message": "test output",
+    "duration": "10s"
+  }
+}
+```
 
 ## Contributing
 
@@ -80,6 +146,7 @@ To build the Docker image locally:
 1. Ensure you have Docker installed on your machine.
 2. Navigate to the project root directory in your terminal.
 3. Build the Docker image:
+
    ```bash
    docker build -t hxckr-core:local .
    ```

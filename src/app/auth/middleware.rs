@@ -12,9 +12,10 @@ use uuid::Uuid;
 
 use crate::service::database::{conn::DbPool, models::Session};
 
+#[allow(dead_code)]
 pub struct SessionInfo {
-    token: String,
-    user_id: Uuid,
+    pub token: String,
+    pub user_id: Uuid,
 }
 pub struct AuthMiddleware;
 

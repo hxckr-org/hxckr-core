@@ -73,6 +73,10 @@
           rustup default stable
           export PATH="$HOME/.cargo/bin:$PATH"
 
+          # Install node@20 and wscat
+          nix-env -iA nixpkgs.nodejs-slim_20
+          npm install -g wscat
+
           # Ensure linker finds libiconv and libpq
           export LIBRARY_PATH="${pkgs.libiconv.out}/lib:${pkgs.postgresql.out}/lib:$LIBRARY_PATH"
           export PKG_CONFIG_PATH="${pkgs.libiconv.out}/lib/pkgconfig:${pkgs.postgresql.out}/lib/pkgconfig:$PKG_CONFIG_PATH"

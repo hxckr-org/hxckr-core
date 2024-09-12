@@ -63,7 +63,7 @@ pub struct Progress {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug)]
+#[derive(Queryable, Insertable, Selectable, Debug, Clone)]
 #[diesel(table_name = crate::schema::repositories)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]

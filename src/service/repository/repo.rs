@@ -38,11 +38,12 @@ impl Repository {
         connection: &mut PgConnection,
         id: Option<String>,
         user_id: Option<String>,
+        repo_url: Option<String>,
     ) -> Result<Vec<Repository>> {
-        use crate::schema::repositories::dsl::user_id as user_id_col;
+        use crate::schema::repositories::dsl::{repo_url as repo_url_col, user_id as user_id_col};
 
-        match (id, user_id) {
-            (Some(id), None) => {
+        match (id, user_id, repo_url) {
+            (Some(id), None, None) => {
                 let id_uuid = string_to_uuid(&id).map_err(|e| {
                     error!("Error parsing UUID: {}", e);
                     anyhow::anyhow!("Repository ID is not valid")
@@ -58,7 +59,7 @@ impl Repository {
                     .ok_or_else(|| anyhow::anyhow!("Repository not found"))?;
                 Ok(vec![repo])
             }
-            (None, Some(user_id)) => {
+            (None, Some(user_id), None) => {
                 let user_id_uuid = string_to_uuid(&user_id).map_err(|e| {
                     error!("Error parsing UUID: {}", e);
                     anyhow::anyhow!("User ID is not valid")
@@ -78,8 +79,29 @@ impl Repository {
                 }
                 Ok(repo)
             }
-            (None, None) => Err(anyhow::anyhow!("No input provided")),
-            _ => Err(anyhow::anyhow!("Invalid input")),
+            (None, None, Some(repo_url)) => {
+                let repo = repositories
+                    .filter(repo_url_col.eq(&repo_url))
+                    .load::<Repository>(connection)
+                    .map_err(|e| {
+                        error!("Error getting repository: {}", e);
+                        FailedToGetRepository(GetRepositoryError(e))
+                    })?;
+                if repo.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "Repository for repo url {} not found",
+                        &repo_url
+                    ));
+                }
+                Ok(repo)
+            }
+            (Some(_), Some(_), None) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => Err(
+                anyhow::anyhow!("Only one of id, user_id, or repo_url should be provided"),
+            ),
+            (Some(_), Some(_), Some(_)) => Err(anyhow::anyhow!(
+                "Cannot provide id, user_id, and repo_url simultaneously"
+            )),
+            (None, None, None) => Err(anyhow::anyhow!("No input provided")),
         }
     }
 }

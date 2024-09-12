@@ -1,3 +1,4 @@
+use actix_ws::{Item, Message};
 use rand::{distributions::Alphanumeric, Rng};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -14,4 +15,25 @@ pub fn generate_session_token() -> String {
         .collect();
 
     format!("hxckr_{}", random_string)
+}
+
+pub fn clone_websocket_message(msg: &Message) -> Message {
+    match msg {
+        Message::Text(text) => Message::Text(text.clone()),
+        Message::Binary(bin) => Message::Binary(bin.clone()),
+        Message::Ping(bytes) => Message::Ping(bytes.clone()),
+        Message::Pong(bytes) => Message::Pong(bytes.clone()),
+        Message::Close(reason) => Message::Close(reason.clone()),
+        Message::Continuation(item) => Message::Continuation(clone_websocket_item(item)),
+        Message::Nop => Message::Nop,
+    }
+}
+
+pub fn clone_websocket_item(item: &Item) -> Item {
+    match item {
+        Item::FirstText(bytes) => Item::FirstText(bytes.clone()),
+        Item::FirstBinary(bytes) => Item::FirstBinary(bytes.clone()),
+        Item::Continue(bytes) => Item::Continue(bytes.clone()),
+        Item::Last(bytes) => Item::Last(bytes.clone()),
+    }
 }

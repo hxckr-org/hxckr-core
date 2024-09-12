@@ -1,8 +1,9 @@
-use actix_ws::{Item, Message, Session};
-use bytestring::ByteString;
+use actix_ws::{Message, Session};
 use std::{collections::HashMap, io, sync::Arc, time::Instant};
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
+
+use crate::shared::utils::{clone_websocket_message, websocket_message_to_bytestring};
 
 pub type ConnId = Uuid;
 pub type SessionToken = String;
@@ -100,7 +101,7 @@ impl WebSocketManager {
                     conn_id
                 );
                 if let Some(conn) = connections.get(&conn_id) {
-                    let cloned_message = &message_to_bytestring(&message);
+                    let cloned_message = websocket_message_to_bytestring(&message);
                     log::info!(
                         "Sending message {:?} to connection: {:?}",
                         cloned_message,
@@ -130,12 +131,15 @@ impl WebSocketManager {
     ) -> io::Result<()> {
         let mut connections = connections.write().await;
         if let Some(conn) = connections.get_mut(&conn_id) {
-            conn.session.text(message_to_bytestring(&message).to_string()).await.map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Failed to send message: {:?}", e),
-                )
-            })?;
+            conn.session
+                .text(websocket_message_to_bytestring(&message).to_string())
+                .await
+                .map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("Failed to send message: {:?}", e),
+                    )
+                })?;
         }
         Ok(())
     }
@@ -151,9 +155,12 @@ impl WebSocketManager {
         if let Some(conn_ids) = sessions.get(session_token) {
             for &conn_id in conn_ids {
                 if let Some(conn) = connections.get(&conn_id) {
-                    let cloned_message = clone_message(&message);
+                    let cloned_message = clone_websocket_message(&message);
                     let mut session = conn.session.clone();
-                    if let Err(e) = session.text(message_to_bytestring(&cloned_message).to_string()).await {
+                    if let Err(e) = session
+                        .text(websocket_message_to_bytestring(&cloned_message).to_string())
+                        .await
+                    {
                         log::error!("Failed to send message to connection {}: {:?}", conn_id, e);
                     }
                 }
@@ -165,9 +172,12 @@ impl WebSocketManager {
     pub async fn broadcast_to_all(&self, message: Message) -> io::Result<()> {
         let connections = self.connections.read().await;
         for (conn_id, conn) in connections.iter() {
-            let cloned_message = clone_message(&message);
+            let cloned_message = clone_websocket_message(&message);
             let mut session = conn.session.clone();
-            if let Err(e) = session.text(message_to_bytestring(&cloned_message).to_string()).await {
+            if let Err(e) = session
+                .text(websocket_message_to_bytestring(&cloned_message).to_string())
+                .await
+            {
                 log::error!("Failed to send message to connection {}: {:?}", conn_id, e);
             }
         }
@@ -226,34 +236,5 @@ impl WebSocketManagerHandle {
 
     pub async fn broadcast_to_all(&self, message: Message) -> io::Result<()> {
         self.manager.broadcast_to_all(message).await
-    }
-}
-
-fn clone_message(msg: &Message) -> Message {
-    match msg {
-        Message::Text(text) => Message::Text(text.clone()),
-        Message::Binary(bin) => Message::Binary(bin.clone()),
-        Message::Ping(bytes) => Message::Ping(bytes.clone()),
-        Message::Pong(bytes) => Message::Pong(bytes.clone()),
-        Message::Close(reason) => Message::Close(reason.clone()),
-        Message::Continuation(item) => Message::Continuation(clone_item(item)),
-        Message::Nop => Message::Nop,
-    }
-}
-
-// convert Message to ByteString
-fn message_to_bytestring(msg: &Message) -> ByteString {
-    match msg {
-        Message::Text(text) => text.to_string().into(),
-        _ => "".to_string().into(),
-    }
-}
-
-fn clone_item(item: &Item) -> Item {
-    match item {
-        Item::FirstText(bytes) => Item::FirstText(bytes.clone()),
-        Item::FirstBinary(bytes) => Item::FirstBinary(bytes.clone()),
-        Item::Continue(bytes) => Item::Continue(bytes.clone()),
-        Item::Last(bytes) => Item::Last(bytes.clone()),
     }
 }

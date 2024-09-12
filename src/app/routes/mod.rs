@@ -5,6 +5,7 @@ pub mod health;
 pub mod signin;
 pub mod signup;
 pub mod users;
+pub mod webhook;
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(health::init());

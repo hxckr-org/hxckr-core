@@ -102,6 +102,10 @@ async fn handle_message(
         }
         Message::Binary(bin) => {
             log::info!("Binary message received: {:?}", bin);
+            let message = Message::Binary(bin);
+            manager_handle
+                .send_message_to_session(session_token, message, conn_id)
+                .await?;
         }
         Message::Close(reason) => {
             log::info!("Close message received: {:?}", reason);

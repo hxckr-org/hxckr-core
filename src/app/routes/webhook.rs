@@ -18,10 +18,14 @@ pub struct PushEvent {
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct TestEvent {
-    outcome: bool,
+    outcome: String,
     error: Option<String>,
     message: String,
+    #[serde(rename = "testName")]
     test_name: String,
+    duration: String,
+    #[serde(rename = "exerciseId")]
+    exercise_id: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
@@ -72,7 +76,7 @@ pub async fn handle_webhook(
                 return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).finish();
             }
         }
-        "test" => {
+        "test_result" => {
             let test_event: TestEvent =
                 serde_json::from_value(event.payload.clone()).unwrap_or_default();
             log::info!("Test event: {:?}", test_event);

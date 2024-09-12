@@ -19,4 +19,3 @@ futures-util = "0.3.30"
 rand = "0.8.5"
 actix-ws = "0.3.0"
 tokio = { version = "1.35.0", features = ["full", "macros"] }
-bytestring = "1.3.1"

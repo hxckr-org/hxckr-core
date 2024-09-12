@@ -1,5 +1,4 @@
 use actix_ws::{Item, Message};
-use bytestring::ByteString;
 use rand::{distributions::Alphanumeric, Rng};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -16,13 +15,6 @@ pub fn generate_session_token() -> String {
         .collect();
 
     format!("hxckr_{}", random_string)
-}
-
-pub fn websocket_message_to_bytestring(msg: &Message) -> ByteString {
-    match msg {
-        Message::Text(text) => text.to_string().into(),
-        _ => "".to_string().into(),
-    }
 }
 
 pub fn clone_websocket_message(msg: &Message) -> Message {

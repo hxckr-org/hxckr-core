@@ -3,7 +3,7 @@ use std::{collections::HashMap, io, sync::Arc, time::Instant};
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
-use crate::shared::utils::{clone_websocket_message, websocket_message_to_bytestring};
+use crate::shared::utils::clone_websocket_message;
 
 pub type ConnId = Uuid;
 pub type SessionToken = String;
@@ -95,21 +95,37 @@ impl WebSocketManager {
 
         if let Some(conn_ids) = sessions.get(session_token) {
             for &conn_id in conn_ids {
+                if conn_id == sender_conn_id {
+                    continue;
+                }
                 log::info!(
                     "sender_conn_id: {:?}, conn_id: {:?}",
                     sender_conn_id,
                     conn_id
                 );
                 if let Some(conn) = connections.get(&conn_id) {
-                    let cloned_message = websocket_message_to_bytestring(&message);
-                    log::info!(
-                        "Sending message {:?} to connection: {:?}",
-                        cloned_message,
-                        conn_id
-                    );
+                    log::info!("Sending message {:?} to connection: {:?}", message, conn_id);
                     let mut session = conn.session.clone();
-                    if let Err(e) = session.text(cloned_message.to_string()).await {
-                        log::error!("Failed to send message to connection {}: {:?}", conn_id, e);
+                    match message {
+                        Message::Text(ref text) => {
+                            session.text(text.clone()).await.map_err(|e| {
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("Failed to send message: {:?}", e),
+                                )
+                            })?;
+                        }
+                        Message::Binary(ref binary) => {
+                            session.binary(binary.clone()).await.map_err(|e| {
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("Failed to send message: {:?}", e),
+                                )
+                            })?;
+                        }
+                        _ => {
+                            log::error!("Received unsupported message type: {:?}", message);
+                        }
                     }
                 }
             }
@@ -131,15 +147,27 @@ impl WebSocketManager {
     ) -> io::Result<()> {
         let mut connections = connections.write().await;
         if let Some(conn) = connections.get_mut(&conn_id) {
-            conn.session
-                .text(websocket_message_to_bytestring(&message).to_string())
-                .await
-                .map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Failed to send message: {:?}", e),
-                    )
-                })?;
+            match message {
+                Message::Text(text) => {
+                    conn.session.text(text).await.map_err(|e| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("Failed to send message: {:?}", e),
+                        )
+                    })?;
+                }
+                Message::Binary(binary) => {
+                    conn.session.binary(binary).await.map_err(|e| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("Failed to send message: {:?}", e),
+                        )
+                    })?;
+                }
+                _ => {
+                    log::error!("Received unsupported message type: {:?}", message);
+                }
+            }
         }
         Ok(())
     }
@@ -157,28 +185,29 @@ impl WebSocketManager {
                 if let Some(conn) = connections.get(&conn_id) {
                     let cloned_message = clone_websocket_message(&message);
                     let mut session = conn.session.clone();
-                    if let Err(e) = session
-                        .text(websocket_message_to_bytestring(&cloned_message).to_string())
-                        .await
-                    {
-                        log::error!("Failed to send message to connection {}: {:?}", conn_id, e);
+
+                    match cloned_message {
+                        Message::Text(text) => {
+                            session.text(text).await.map_err(|e| {
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("Failed to send message: {:?}", e),
+                                )
+                            })?;
+                        }
+                        Message::Binary(binary) => {
+                            session.binary(binary).await.map_err(|e| {
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("Failed to send message: {:?}", e),
+                                )
+                            })?;
+                        }
+                        _ => {
+                            log::error!("Received unsupported message type: {:?}", cloned_message);
+                        }
                     }
                 }
-            }
-        }
-        Ok(())
-    }
-
-    pub async fn broadcast_to_all(&self, message: Message) -> io::Result<()> {
-        let connections = self.connections.read().await;
-        for (conn_id, conn) in connections.iter() {
-            let cloned_message = clone_websocket_message(&message);
-            let mut session = conn.session.clone();
-            if let Err(e) = session
-                .text(websocket_message_to_bytestring(&cloned_message).to_string())
-                .await
-            {
-                log::error!("Failed to send message to connection {}: {:?}", conn_id, e);
             }
         }
         Ok(())
@@ -232,9 +261,5 @@ impl WebSocketManagerHandle {
         self.manager
             .broadcast_to_session(session_token, message)
             .await
-    }
-
-    pub async fn broadcast_to_all(&self, message: Message) -> io::Result<()> {
-        self.manager.broadcast_to_all(message).await
     }
 }

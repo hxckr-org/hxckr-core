@@ -34,6 +34,7 @@ pub async fn websocket_handler(
 
     log::info!("WebSocket connected: Connection ID {:?}", conn_id);
 
+    let session = Some(session);
     let session_clone = session.clone();
     actix_web::rt::spawn(async move {
         let mut last_heartbeat = Instant::now();
@@ -61,8 +62,10 @@ pub async fn websocket_handler(
                         log::info!("Client timeout: Connection ID {:?}", conn_id);
                         break;
                     }
-                    if session.ping(b"").await.is_err() {
-                        break;
+                    if let Some(session) = session.as_mut() {
+                        if session.ping(b"").await.is_err() {
+                            break;
+                        }
                     }
                 }
                 else => break,
@@ -78,17 +81,19 @@ pub async fn websocket_handler(
 
 async fn handle_message(
     msg: Message,
-    session: &mut Session,
+    session: &mut Option<Session>,
     manager_handle: &WebSocketManagerHandle,
     conn_id: ConnId,
     session_token: &SessionToken,
 ) -> Result<(), Error> {
     match msg {
         Message::Ping(bytes) => {
-            session
-                .pong(&bytes)
-                .await
-                .map_err(|e| Error::from(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            if let Some(session) = session.as_mut() {
+                session
+                    .pong(&bytes)
+                    .await
+                    .map_err(|e| Error::from(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            }
         }
         Message::Pong(_) => {
             manager_handle.update_heartbeat(conn_id).await?;
@@ -109,10 +114,13 @@ async fn handle_message(
         }
         Message::Close(reason) => {
             log::info!("Close message received: {:?}", reason);
-            return Err(Error::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "WebSocket closed",
-            )));
+            manager_handle.disconnect(conn_id).await?;
+            if let Some(sess) = session.take() {
+                sess.close(reason)
+                    .await
+                    .map_err(|e| Error::from(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            }
+            return Ok(());
         }
         _ => {}
     }

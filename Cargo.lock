@@ -838,7 +838,6 @@ dependencies = [
  "actix-web",
  "actix-ws",
  "anyhow",
- "bytestring",
  "chrono",
  "diesel",
  "dotenvy",

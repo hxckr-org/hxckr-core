@@ -95,8 +95,13 @@ impl Repository {
                 }
                 Ok(repo)
             }
+            (Some(_), Some(_), None) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => Err(
+                anyhow::anyhow!("Only one of id, user_id, or repo_url should be provided"),
+            ),
+            (Some(_), Some(_), Some(_)) => Err(anyhow::anyhow!(
+                "Cannot provide id, user_id, and repo_url simultaneously"
+            )),
             (None, None, None) => Err(anyhow::anyhow!("No input provided")),
-            _ => Err(anyhow::anyhow!("Invalid input")),
         }
     }
 }

@@ -31,7 +31,7 @@ impl WebSocketManager {
 
     pub async fn connect(
         &self,
-        session_token: SessionToken,
+        session_token: &SessionToken,
         session: Session,
     ) -> io::Result<ConnId> {
         let conn_id = ConnId::new_v4();
@@ -228,7 +228,7 @@ impl WebSocketManagerHandle {
 
     pub async fn connect(
         &self,
-        session_token: SessionToken,
+        session_token: &SessionToken,
         session: &Session,
     ) -> io::Result<ConnId> {
         self.manager.connect(session_token, session.clone()).await

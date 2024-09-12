@@ -28,18 +28,16 @@ pub async fn websocket_handler(
     };
 
     let conn_id = manager_handle
-        .connect(session_token.clone(), &session)
+        .connect(&session_token, &session)
         .await
         .map_err(Error::from)?;
 
     log::info!("WebSocket connected: Connection ID {:?}", conn_id);
 
-    let session = Some(session);
-    let session_clone = session.clone();
     actix_web::rt::spawn(async move {
         let mut last_heartbeat = Instant::now();
         let mut interval = interval(HEARTBEAT_INTERVAL);
-        let mut session = session_clone;
+        let mut session = Some(session);
 
         loop {
             tokio::select! {

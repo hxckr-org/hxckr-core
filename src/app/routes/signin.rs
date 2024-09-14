@@ -50,7 +50,6 @@ async fn signin(
         user.email.as_deref(),
         user.github_username.as_deref(),
     )
-    .map(|user| user)
     .map_err(|e| match e.downcast_ref() {
         Some(RepositoryError::UserNotFound) => RepositoryError::UserNotFound,
         _ => RepositoryError::FailedToGetUser(GetUserError(diesel::result::Error::DatabaseError(

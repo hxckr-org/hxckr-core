@@ -32,10 +32,7 @@ impl Challenge {
         }
     }
 
-    pub fn create_challenge(
-        connection: &mut PgConnection,
-        challenge: Challenge,
-    ) -> Result<Challenge> {
+    pub fn create(connection: &mut PgConnection, challenge: Challenge) -> Result<Challenge> {
         match diesel::insert_into(challenges_table)
             .values(challenge)
             .returning(Challenge::as_returning())
@@ -85,12 +82,8 @@ impl Challenge {
                     .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
                 Ok(challenge)
             }
-            (Some(_), Some(_)) => {
-                return Err(anyhow::anyhow!("Cannot provide both id and repo_url").into());
-            }
-            (None, None) => {
-                return Err(anyhow::anyhow!("No input provided").into());
-            }
+            (Some(_), Some(_)) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
+            (None, None) => Err(anyhow::anyhow!("No input provided")),
         }
     }
 }

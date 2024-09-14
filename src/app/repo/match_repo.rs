@@ -10,7 +10,7 @@ pub async fn match_repo_for_webhook(repo_url: &str) -> Result<Session> {
     let repo = Repository::get_repo(&mut conn, None, None, Some(repo_url.to_string()))
         .context(format!("Failed to find repository with URL: {}", repo_url))?;
     let repo = repo
-        .get(0)
+        .first()
         .ok_or_else(|| anyhow::anyhow!("Repository not found with URL: {}", repo_url))?;
 
     let session = Session::get_by_userid(&mut conn, &repo.user_id).context(format!(

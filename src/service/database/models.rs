@@ -18,7 +18,7 @@ pub struct User {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug)]
+#[derive(Queryable, Insertable, Selectable, Debug, Serialize)]
 #[diesel(table_name = crate::schema::challenges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]
@@ -33,7 +33,7 @@ pub struct Challenge {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug)]
+#[derive(Queryable, Insertable, Selectable, Debug, Serialize)]
 #[diesel(table_name = crate::schema::exercises)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]

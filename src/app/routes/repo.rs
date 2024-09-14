@@ -99,14 +99,10 @@ async fn create_repo(
             RepositoryError::BadRequest("Error creating repository".to_string())
         })?;
     let create_repo_response = match response.status() {
-        StatusCode::OK => {
-            let create_repo_response =
-                response.json::<CreateRepoResponse>().await.map_err(|e| {
-                    error!("Error in git service response: {:#?}", e);
-                    RepositoryError::BadRequest("Error decoding repository response".to_string())
-                })?;
-            create_repo_response
-        }
+        StatusCode::OK => response.json::<CreateRepoResponse>().await.map_err(|e| {
+            error!("Error in git service response: {:#?}", e);
+            RepositoryError::BadRequest("Error decoding repository response".to_string())
+        })?,
         StatusCode::CONFLICT => {
             return Err(RepositoryError::RepositoryAlreadyExists);
         }

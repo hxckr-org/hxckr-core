@@ -50,6 +50,9 @@
           pkg-config
           libiconv
           postgresql
+          nodejs-slim_20
+          darwin.apple_sdk.frameworks.SystemConfiguration
+          darwin.apple_sdk.frameworks.Security
         ];
 
         shellHook = ''
@@ -73,8 +76,7 @@
           rustup default stable
           export PATH="$HOME/.cargo/bin:$PATH"
 
-          # Install node@20 and wscat
-          nix-env -iA nixpkgs.nodejs-slim_20
+          # Install wscat
           npm install -g wscat
 
           # Ensure linker finds libiconv and libpq

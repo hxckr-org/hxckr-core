@@ -45,6 +45,7 @@ async fn signin(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let db_user = User::get_user(
         &mut conn,
+        None,
         user.username.as_deref(),
         user.email.as_deref(),
         user.github_username.as_deref(),

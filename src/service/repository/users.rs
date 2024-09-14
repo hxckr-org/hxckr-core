@@ -60,6 +60,7 @@ impl User {
 
     pub fn get_user(
         connection: &mut PgConnection,
+        user_id: Option<&Uuid>,
         username: Option<&str>,
         email: Option<&str>,
         github_username: Option<&str>,
@@ -67,20 +68,65 @@ impl User {
         use crate::schema::users::dsl::{
             email as email_col, github_username as github_username_col, username as username_col,
         };
-        let user = users::table
-            .filter(username_col.eq(username.unwrap_or_default()))
-            .or_filter(email_col.eq(email.unwrap_or_default()))
-            .or_filter(github_username_col.eq(github_username.unwrap_or_default()))
-            .first::<User>(connection)
-            .optional()
-            .map_err(|e| {
-                error!("Error getting user: {}", e);
-                FailedToGetUser(GetUserError(e))
-            })?;
 
-        user.ok_or_else(|| {
-            error!("User not found");
-            UserNotFound.into()
-        })
+        match (user_id, username, email, github_username) {
+            (Some(user_id), None, None, None) => {
+                let user = users::table
+                    .find(user_id)
+                    .first::<User>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting user: {}", e);
+                        FailedToGetUser(GetUserError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+                Ok(user)
+            }
+            (None, Some(username), None, None) => {
+                let user = users::table
+                    .filter(username_col.eq(username))
+                    .first::<User>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting user: {}", e);
+                        FailedToGetUser(GetUserError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+                Ok(user)
+            }
+            (None, None, Some(email), None) => {
+                let user = users::table
+                    .filter(email_col.eq(email))
+                    .first::<User>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting user: {}", e);
+                        FailedToGetUser(GetUserError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+                Ok(user)
+            }
+            (None, None, None, Some(github_username)) => {
+                let user = users::table
+                    .filter(github_username_col.eq(github_username))
+                    .first::<User>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting user: {}", e);
+                        FailedToGetUser(GetUserError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+                Ok(user)
+            }
+            (Some(_), Some(_), Some(_), Some(_)) => {
+                return Err(anyhow::anyhow!(
+                    "Cannot provide both id and username, email, github_username"
+                )
+                .into());
+            }
+            _ => {
+                return Err(anyhow::anyhow!("No input provided").into());
+            }
+        }
     }
 }

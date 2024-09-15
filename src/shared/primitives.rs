@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Difficulty {
     Easy,
     Medium,
@@ -23,6 +26,7 @@ impl Difficulty {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ChallengeMode {
     FunctionalTest,
     Project,

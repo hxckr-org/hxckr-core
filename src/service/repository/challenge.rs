@@ -17,8 +17,8 @@ impl Challenge {
         title: &str,
         description: &str,
         repo_url: &str,
-        difficulty: Difficulty,
-        mode: ChallengeMode,
+        difficulty: &Difficulty,
+        mode: &ChallengeMode,
     ) -> Self {
         Challenge {
             id: Uuid::new_v4(),

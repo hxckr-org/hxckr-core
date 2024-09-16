@@ -69,6 +69,17 @@ impl User {
             email as email_col, github_username as github_username_col, username as username_col,
         };
 
+        let param_count = user_id.is_some() as u8
+            + username.is_some() as u8
+            + email.is_some() as u8
+            + github_username.is_some() as u8;
+
+        if param_count != 1 {
+            return Err(anyhow::anyhow!(
+                "Multiple parameters are not allowed. Please provide only one parameter."
+            ));
+        }
+
         match (user_id, username, email, github_username) {
             (Some(user_id), None, None, None) => {
                 let user = users::table
@@ -118,9 +129,6 @@ impl User {
                     .ok_or_else(|| anyhow::anyhow!("User not found"))?;
                 Ok(user)
             }
-            (Some(_), Some(_), Some(_), Some(_)) => Err(anyhow::anyhow!(
-                "Cannot provide both id and username, email, github_username"
-            )),
             _ => Err(anyhow::anyhow!("No input provided")),
         }
     }

@@ -14,3 +14,5 @@ pub mod repository {
     pub mod leaderboard;
     pub mod badge;
 }
+
+pub mod queue;

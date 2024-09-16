@@ -123,7 +123,37 @@ async fn create_repo(
         }
     };
 
-    let repo = Repository::new(&user_id, &challenge.id, &create_repo_response.repo_url);
+    // Parse the soft_serve_url from the repo_url by removing the user token in the url
+    // This is necessary because the user token is not appended to the repo_url in the
+    // response from the git service.
+    // So both the repo_url with the token (provided to client for cloning) and and
+    // the url without the token (for matching with queue events) are stored in the database
+    let (scheme, rest) = create_repo_response
+        .repo_url
+        .split_once("://")
+        .ok_or_else(|| {
+            error!(
+                "Error parsing repository url: {}",
+                create_repo_response.repo_url
+            );
+            RepositoryError::BadRequest("Error parsing repository url".to_string())
+        })?;
+    let soft_serve_url = rest
+        .split_once("@")
+        .map(|(_, path)| format!("{}://{}", scheme, path))
+        .ok_or_else(|| {
+            error!(
+                "Error parsing repository url: {}",
+                create_repo_response.repo_url
+            );
+            RepositoryError::BadRequest("Error parsing repository url".to_string())
+        })?;
+    let repo = Repository::new(
+        &user_id,
+        &challenge.id,
+        &create_repo_response.repo_url,
+        &soft_serve_url,
+    );
     if let Err(e) = Repository::create_repo(&mut conn, repo) {
         error!("Error creating repository in database: {:#?}", e);
         return Err(RepositoryError::FailedToCreateRepository(

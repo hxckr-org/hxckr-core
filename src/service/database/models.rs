@@ -72,6 +72,7 @@ pub struct Repository {
     pub user_id: Uuid,
     pub challenge_id: Uuid,
     pub repo_url: String,
+    pub soft_serve_url: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

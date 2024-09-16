@@ -1,21 +1,22 @@
 use crate::schema::repositories::table as repositories;
+use crate::service::database::models::Repository;
 use crate::shared::errors::{
     CreateRepositoryError, GetRepositoryError,
     RepositoryError::{FailedToCreateRepository, FailedToGetRepository},
 };
-use crate::{service::database::models::Repository, shared::utils::string_to_uuid};
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
 use uuid::Uuid;
 
 impl Repository {
-    pub fn new(user_id: &Uuid, challenge_id: &Uuid, repo_url: &str) -> Self {
+    pub fn new(user_id: &Uuid, challenge_id: &Uuid, repo_url: &str, soft_serve_url: &str) -> Self {
         Repository {
             id: Uuid::new_v4(),
             user_id: user_id.to_owned(),
             challenge_id: challenge_id.to_owned(),
             repo_url: repo_url.to_string(),
+            soft_serve_url: soft_serve_url.to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }
@@ -36,20 +37,31 @@ impl Repository {
 
     pub fn get_repo(
         connection: &mut PgConnection,
-        id: Option<String>,
-        user_id: Option<String>,
-        repo_url: Option<String>,
+        id: Option<&Uuid>,
+        user_id: Option<&Uuid>,
+        repo_url: Option<&str>,
+        soft_serve_url: Option<&str>,
     ) -> Result<Vec<Repository>> {
-        use crate::schema::repositories::dsl::{repo_url as repo_url_col, user_id as user_id_col};
+        use crate::schema::repositories::dsl::{
+            repo_url as repo_url_col, soft_serve_url as soft_serve_url_col, user_id as user_id_col,
+        };
 
-        match (id, user_id, repo_url) {
-            (Some(id), None, None) => {
-                let id_uuid = string_to_uuid(&id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("Repository ID is not valid")
-                })?;
+        let param_count = id.is_some() as u8
+            + user_id.is_some() as u8
+            + repo_url.is_some() as u8
+            + soft_serve_url.is_some() as u8;
+
+        if param_count != 1 {
+            return Err(anyhow::anyhow!(
+                "Multiple parameters are not allowed. Please provide only one parameter."
+            ));
+        }
+
+        match (id, user_id, repo_url, soft_serve_url) {
+            (Some(id), None, None, None) => {
                 let repo = repositories
-                    .find(id_uuid)
+                    .find(id)
+                    .select(Repository::as_select())
                     .first::<Repository>(connection)
                     .optional()
                     .map_err(|e| {
@@ -59,13 +71,10 @@ impl Repository {
                     .ok_or_else(|| anyhow::anyhow!("Repository not found"))?;
                 Ok(vec![repo])
             }
-            (None, Some(user_id), None) => {
-                let user_id_uuid = string_to_uuid(&user_id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("User ID is not valid")
-                })?;
+            (None, Some(user_id), None, None) => {
                 let repo = repositories
-                    .filter(user_id_col.eq(user_id_uuid))
+                    .filter(user_id_col.eq(user_id))
+                    .select(Repository::as_select())
                     .load::<Repository>(connection)
                     .map_err(|e| {
                         error!("Error getting repository: {}", e);
@@ -79,9 +88,10 @@ impl Repository {
                 }
                 Ok(repo)
             }
-            (None, None, Some(repo_url)) => {
+            (None, None, Some(repo_url), None) => {
                 let repo = repositories
                     .filter(repo_url_col.eq(&repo_url))
+                    .select(Repository::as_select())
                     .load::<Repository>(connection)
                     .map_err(|e| {
                         error!("Error getting repository: {}", e);
@@ -95,13 +105,24 @@ impl Repository {
                 }
                 Ok(repo)
             }
-            (Some(_), Some(_), None) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => Err(
-                anyhow::anyhow!("Only one of id, user_id, or repo_url should be provided"),
-            ),
-            (Some(_), Some(_), Some(_)) => Err(anyhow::anyhow!(
-                "Cannot provide id, user_id, and repo_url simultaneously"
-            )),
-            (None, None, None) => Err(anyhow::anyhow!("No input provided")),
+            (None, None, None, Some(soft_serve_url)) => {
+                let repo = repositories
+                    .filter(soft_serve_url_col.eq(&soft_serve_url))
+                    .select(Repository::as_select())
+                    .load::<Repository>(connection)
+                    .map_err(|e| {
+                        error!("Error getting repository: {}", e);
+                        FailedToGetRepository(GetRepositoryError(e))
+                    })?;
+                if repo.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "Repository for soft serve url {} not found",
+                        &soft_serve_url
+                    ));
+                }
+                Ok(repo)
+            }
+            _ => Err(anyhow::anyhow!("No input provided")),
         }
     }
 }

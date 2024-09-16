@@ -5,7 +5,6 @@ pub mod health;
 pub mod signin;
 pub mod signup;
 pub mod users;
-pub mod webhook;
 pub mod repo;
 pub mod challenge;
 pub fn init(cfg: &mut web::ServiceConfig) {

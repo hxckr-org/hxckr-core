@@ -17,10 +17,12 @@ impl ResponseError for RepositoryError {
     fn status_code(&self) -> StatusCode {
         match self {
             RepositoryError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            RepositoryError::RepositoryAlreadyExists => StatusCode::CONFLICT,
             RepositoryError::UserAlreadyExists => StatusCode::CONFLICT,
             RepositoryError::UserNotFound => StatusCode::NOT_FOUND,
             RepositoryError::FailedToGetUser(_) => StatusCode::NOT_FOUND,
             RepositoryError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            RepositoryError::ServerConfigurationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

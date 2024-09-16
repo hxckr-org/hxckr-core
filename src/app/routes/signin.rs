@@ -10,6 +10,7 @@ use crate::{
 };
 use actix_web::{web, HttpResponse, Result, Scope};
 use serde_json::json;
+use log::error;
 
 #[derive(serde::Deserialize)]
 struct UserBody {
@@ -42,14 +43,17 @@ async fn signin(
         Err(e) => return Err(RepositoryError::BadRequest(e.to_string())),
     };
 
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
     let db_user = User::get_user(
         &mut conn,
+        None,
         user.username.as_deref(),
         user.email.as_deref(),
         user.github_username.as_deref(),
     )
-    .map(|user| user)
     .map_err(|e| match e.downcast_ref() {
         Some(RepositoryError::UserNotFound) => RepositoryError::UserNotFound,
         _ => RepositoryError::FailedToGetUser(GetUserError(diesel::result::Error::DatabaseError(

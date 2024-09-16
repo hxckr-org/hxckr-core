@@ -50,8 +50,13 @@
           pkg-config
           libiconv
           postgresql
-        ];
-
+          nodejs-slim_20
+        ]
+        ++ (if system == "x86_64-darwin" || system == "aarch64-darwin" then [
+          pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+          pkgs.darwin.apple_sdk.frameworks.Security
+        ] else []);
+          
         shellHook = ''
           # Change the prompt color to blue when in the Nix shell
           export PS1="\[\033[01;34m\]\u@\h:\w\[\033[00m\]\$ "
@@ -73,8 +78,7 @@
           rustup default stable
           export PATH="$HOME/.cargo/bin:$PATH"
 
-          # Install node@20 and wscat
-          nix-env -iA nixpkgs.nodejs-slim_20
+          # Install wscat
           npm install -g wscat
 
           # Ensure linker finds libiconv and libpq

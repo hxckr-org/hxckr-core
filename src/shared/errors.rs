@@ -2,6 +2,8 @@ pub use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RepositoryError {
+    #[error("Server configuration error: {0}")]
+    ServerConfigurationError(String),
     #[error("Bad request: {0}")]
     BadRequest(String),
     #[error("{0}")]
@@ -32,6 +34,8 @@ pub enum RepositoryError {
     FailedToGetProgress(#[from] GetProgressError),
     #[error("Failed to update progress")]
     FailedToUpdateProgress(#[from] UpdateProgressError),
+    #[error("Repository already exists")]
+    RepositoryAlreadyExists,
     #[error("Failed to create repository")]
     FailedToCreateRepository(#[from] CreateRepositoryError),
     #[error("Failed to get repository")]

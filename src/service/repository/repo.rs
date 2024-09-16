@@ -10,11 +10,11 @@ use log::error;
 use uuid::Uuid;
 
 impl Repository {
-    pub fn new(user_id: &str, challenge_id: &str, repo_url: &str) -> Self {
+    pub fn new(user_id: &Uuid, challenge_id: &Uuid, repo_url: &str) -> Self {
         Repository {
             id: Uuid::new_v4(),
-            user_id: string_to_uuid(user_id).unwrap(),
-            challenge_id: string_to_uuid(challenge_id).unwrap(),
+            user_id: user_id.to_owned(),
+            challenge_id: challenge_id.to_owned(),
             repo_url: repo_url.to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),

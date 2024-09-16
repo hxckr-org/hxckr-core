@@ -15,7 +15,7 @@ use diesel::{
     Connection, PgConnection,
 };
 use serde_json::json;
-
+use log::error;
 #[derive(serde::Deserialize)]
 struct NewUser {
     username: String,
@@ -48,7 +48,10 @@ async fn signup(
         Err(e) => return Err(RepositoryError::BadRequest(e.to_string())),
     };
 
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
     let result = conn.transaction::<_, RepositoryError, _>(
         |conn: &mut PooledConnection<ConnectionManager<PgConnection>>| {
             let new_user = User::new(

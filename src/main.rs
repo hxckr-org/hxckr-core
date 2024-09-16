@@ -17,6 +17,12 @@ mod shared;
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    if std::env::var("DATABASE_URL").is_err() {
+        panic!("DATABASE_URL is not set");
+    }
+    if std::env::var("GIT_SERVICE_URL").is_err() {
+        panic!("GIT_SERVICE_URL is not set");
+    }
 
     let pool = get_connection_pool();
     let manager_handle = WebSocketManagerHandle::new();

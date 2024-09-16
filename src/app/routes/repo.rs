@@ -48,8 +48,16 @@ async fn create_repo(
     }
 
     let client = reqwest::Client::new();
-    let git_service_url = std::env::var("GIT_SERVICE_URL").expect("GIT_SERVICE_URL not set");
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
+    let git_service_url = std::env::var("GIT_SERVICE_URL").map_err(|_| {
+        error!("GIT_SERVICE_URL environment variable not set");
+        RepositoryError::ServerConfigurationError(
+            "GIT_SERVICE_URL environment variable not set".to_string(),
+        )
+    })?;
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
 
     let user_id = match req.extensions().get::<SessionInfo>() {
         Some(session_info) => session_info.user_id,

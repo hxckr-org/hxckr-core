@@ -2,6 +2,8 @@ pub use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RepositoryError {
+    #[error("Server configuration error: {0}")]
+    ServerConfigurationError(String),
     #[error("Bad request: {0}")]
     BadRequest(String),
     #[error("{0}")]

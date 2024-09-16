@@ -4,6 +4,7 @@ use crate::{
 };
 use actix_web::{web, HttpResponse, Result, Scope};
 use anyhow::Error as AnyhowError;
+use log::error;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -42,7 +43,10 @@ async fn get_user(
         ));
     }
 
-    let mut connection = pool.get().expect("couldn't get db connection from pool");
+    let mut connection = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
 
     User::get_user(
         &mut connection,

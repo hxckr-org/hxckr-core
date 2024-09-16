@@ -33,7 +33,10 @@ async fn create_challenge(
     challenge: Result<web::Json<NewChallenge>, actix_web::Error>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
     let user_id = match req.extensions().get::<SessionInfo>() {
         Some(session_info) => session_info.user_id,
         None => {

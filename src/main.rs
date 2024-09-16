@@ -6,7 +6,7 @@ use app::{
 };
 use dotenvy::dotenv;
 use env_logger::Env;
-use service::database::conn::get_connection_pool;
+use service::{database::conn::get_connection_pool, queue::consume_queue};
 
 mod app;
 mod schema;
@@ -23,9 +23,22 @@ async fn main() -> std::io::Result<()> {
     if std::env::var("GIT_SERVICE_URL").is_err() {
         panic!("GIT_SERVICE_URL is not set");
     }
+    if std::env::var("RABBITMQ_URL").is_err() {
+        panic!("RABBITMQ_URL is not set");
+    }
+    if std::env::var("RABBITMQ_QUEUE_NAME").is_err() {
+        panic!("RABBITMQ_QUEUE_NAME is not set");
+    }
 
     let pool = get_connection_pool();
     let manager_handle = WebSocketManagerHandle::new();
+    let manager_handle_clone = manager_handle.clone();
+
+    tokio::spawn(async move {
+        if let Err(e) = consume_queue(manager_handle_clone).await {
+            log::error!("RabbitMQ consumer encountered an error: {:?}", e);
+        }
+    });
 
     HttpServer::new(move || {
         App::new()
@@ -41,9 +54,6 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/ws")
                     .wrap(AuthMiddleware)
                     .route(web::get().to(websocket_handler)),
-            )
-            .service(
-                web::resource("/webhook").route(web::post().to(routes::webhook::handle_webhook)),
             )
     })
     .bind("127.0.0.1:4925")?

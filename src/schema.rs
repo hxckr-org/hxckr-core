@@ -78,6 +78,7 @@ diesel::table! {
         repo_url -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        soft_serve_url -> Text,
     }
 }
 

@@ -79,11 +79,13 @@ async fn create_repo(
     };
 
     let repo_name = repo_url
-        .split("/")
-        .last()
-        .ok_or(RepositoryError::BadRequest(
-            "Error getting repository name from url".to_string(),
-        ))?;
+        .rsplit("/")
+        .next()
+        .and_then(|name| if name.is_empty() { None } else { Some(name) })
+        .ok_or_else(|| {
+            error!("Invalid repository URL format: {}", repo_url);
+            RepositoryError::BadRequest("Invalid repository URL format".to_string())
+        })?;
     let request_body = json!({
         "repo_name": format!("{}__{}", user.username, repo_name),
         "repo_url": &repo_url,

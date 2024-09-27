@@ -56,7 +56,7 @@ async fn main() -> std::io::Result<()> {
                     .route(web::get().to(websocket_handler)),
             )
     })
-    .bind("127.0.0.1:4925")?
+    .bind("0.0.0.0:4925")?
     .run()
     .await
 }

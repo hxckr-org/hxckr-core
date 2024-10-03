@@ -29,15 +29,40 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (Development)
+        if: github.event_name == 'push'
         uses: docker/build-push-action@v4
         with:
           context: .
+          file: Dockerfile.dev
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:dev
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      - name: Build and push Docker image (Production)
+        if: github.event_name == 'release'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      - name: Run migrations (Production)
+        if: github.event_name == 'release'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          docker run --rm \
+            -e DATABASE_URL \
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            diesel migration run

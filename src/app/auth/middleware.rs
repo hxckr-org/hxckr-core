@@ -6,8 +6,11 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 use log::{error, warn};
 use serde_json::json;
-use std::future::{ready, Ready};
 use std::task::{Context, Poll};
+use std::{
+    collections::HashMap,
+    future::{ready, Ready},
+};
 use uuid::Uuid;
 
 use crate::service::database::{conn::DbPool, models::Session};
@@ -66,23 +69,42 @@ where
             });
         }
 
-        let session_header = req.headers().get("x-session-token").cloned();
-        let session_token = match session_header {
-            Some(token) => token.to_str().unwrap_or_default().to_string(),
-            None => {
-                let error_response = json!({
-                    "status": "error",
-                    "message": "Missing session token"
-                });
-                let response = HttpResponse::Unauthorized()
-                    .content_type("application/json")
-                    .body(error_response.to_string());
+        // We're using the same middleware for both HTTP and WebSocket requests
+        // but websocket connection from web-browsers have a limitation on the request headers.
+        // The WebSocket API does not support custom headers during the handshake.
+        // This is a browser security limitation.
+        // So, we need to get the session token from the query params for websocket requests
+        let session_token = if req.headers().get("Upgrade").is_some() {
+            // WebSocket request: get token from query params
+            let query_map = req
+                .query_string()
+                .split('&')
+                .map(|param| {
+                    let parts = param.splitn(2, '=').collect::<Vec<&str>>();
+                    (parts[0], parts.get(1).unwrap_or(&"").to_string())
+                })
+                .collect::<HashMap<&str, String>>();
 
-                return Box::pin(
-                    async move { Ok(req.into_response(response).map_into_boxed_body()) },
-                );
-            }
+            query_map.get("token").cloned().unwrap_or_default()
+        } else {
+            // HTTP/HTTPS request: get token from headers
+            req.headers()
+                .get("x-session-token")
+                .and_then(|token| token.to_str().ok())
+                .map(String::from)
+                .unwrap_or_default()
         };
+
+        if session_token.is_empty() {
+            let error_response = json!({
+                "status": "error",
+                "message": "Missing session token"
+            });
+            let response = HttpResponse::Unauthorized()
+                .content_type("application/json")
+                .body(error_response.to_string());
+            return Box::pin(async move { Ok(req.into_response(response).map_into_boxed_body()) });
+        }
 
         let pool = req
             .app_data::<web::Data<DbPool>>()

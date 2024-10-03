@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use app::{
     auth::middleware::AuthMiddleware,
@@ -30,6 +31,8 @@ async fn main() -> std::io::Result<()> {
         panic!("RABBITMQ_QUEUE_NAME is not set");
     }
 
+    let connection_url =
+        std::env::var("CONNECTION_URL").unwrap_or_else(|_| "127.0.0.1:4925".to_string());
     let pool = get_connection_pool();
     let manager_handle = WebSocketManagerHandle::new();
     let manager_handle_clone = manager_handle.clone();
@@ -41,22 +44,20 @@ async fn main() -> std::io::Result<()> {
     });
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header();
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(manager_handle.clone()))
             .wrap(Logger::default())
-            .service(
-                web::scope("/api")
-                    .wrap(AuthMiddleware)
-                    .configure(routes::init),
-            )
-            .service(
-                web::resource("/ws")
-                    .wrap(AuthMiddleware)
-                    .route(web::get().to(websocket_handler)),
-            )
+            .wrap(AuthMiddleware)
+            .wrap(cors)
+            .service(web::scope("/api").configure(routes::init))
+            .service(web::resource("/ws").route(web::get().to(websocket_handler)))
     })
-    .bind("0.0.0.0:4925")?
+    .bind(&connection_url)?
     .run()
     .await
 }

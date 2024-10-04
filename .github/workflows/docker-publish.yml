@@ -49,7 +49,6 @@ jobs:
           docker run --rm hxckr-core:latest ls -l /app
           docker run --rm hxckr-core:latest ls -l /app/migrations
           docker run --rm hxckr-core:latest cat /app/entrypoint.sh
-          docker run --rm hxckr-core:latest which diesel
           docker run --rm hxckr-core:latest diesel --version
 
       - name: Login to DockerHub

@@ -48,7 +48,10 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
-          path: target
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ runner.os }}-cargo-chef-${{ hashFiles('**/recipe.json') }}
           restore-keys: |
             ${{ runner.os }}-cargo-chef-

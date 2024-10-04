@@ -10,6 +10,7 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/hxckr-core
+  CARGO_TERM_COLOR: always
 
 jobs:
   build-and-push:
@@ -17,6 +18,46 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-chef
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-chef
+
+      - name: Prepare recipe
+        run: cargo chef prepare --recipe-path recipe.json
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-chef-${{ hashFiles('**/recipe.json') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-chef-
+
+      - name: Build dependencies
+        run: cargo chef cook --release --recipe-path recipe.json
+
+      - name: Build project
+        run: cargo build --release --all-features
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2

@@ -36,7 +36,7 @@ jobs:
         with:
           path: |
             ~/.cache/nix
-          key: ${{ runner.os }}-nix-${{ matrix.arch }}-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
+          key: ${{ runner.os }}-nix-${{ matrix.arch }}-${{ hashFiles('**/build-image.nix', '**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-${{ matrix.arch }}-
 

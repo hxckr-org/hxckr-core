@@ -3,3 +3,4 @@
 /data
 diesel.toml
 .env
+/soft_serve_postgres_data

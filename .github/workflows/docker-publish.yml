@@ -1,4 +1,4 @@
-name: Docker Build and Publish
+name: Build and Publish
 
 on:
   push:
@@ -10,12 +10,13 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/hxckr-core
-  CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-push-dev:
-    if: github.event_name == 'push'
+  build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,21 +36,27 @@ jobs:
         with:
           path: |
             ~/.cache/nix
-          key: ${{ runner.os }}-nix-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
+          key: ${{ runner.os }}-nix-${{ matrix.arch }}-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-nix-
+            ${{ runner.os }}-nix-${{ matrix.arch }}-
 
       - name: Build with Nix
         run: |
-          nix-build build-image.nix
-          docker load < result
+          export NIX_BUILD_CORES=$(nproc)
+          nix-build docker-image.nix -A ${{ matrix.arch }} -o result-${{ matrix.arch }}
+          ls -l result-${{ matrix.arch }}
+        env:
+          NIX_BUILD_CORES: ${{ steps.cores.outputs.count }}
 
-      - name: Verify image contents
+      - name: Load image into Docker
+        run: docker load < result-${{ matrix.arch }}
+
+      - name: Verify image contents and entrypoint
         run: |
-          docker run --rm hxckr-core:latest ls -l /app
-          docker run --rm hxckr-core:latest ls -l /app/migrations
-          docker run --rm hxckr-core:latest cat /app/entrypoint.sh
-          docker run --rm hxckr-core:latest diesel --version
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app || echo "Failed to list /app contents"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app/migrations || echo "Failed to list migrations"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest cat /app/entrypoint.sh || echo "Failed to cat entrypoint.sh"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest diesel --version || echo "Failed to get diesel version"
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -57,37 +64,30 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Tag and push Docker image
         run: |
-          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:dev
-          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.IMAGE_NAME }}:dev
-          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
+          ARCH=${{ matrix.arch }}
+          docker tag hxckr-core:$ARCH-latest ${{ env.IMAGE_NAME }}:$TAG-$ARCH
+          docker push ${{ env.IMAGE_NAME }}:$TAG-$ARCH
+          # Print image details
+          docker inspect ${{ env.IMAGE_NAME }}:$TAG-$ARCH
 
       - name: Print image size and details
         run: |
-          docker image ls ${{ env.IMAGE_NAME }}:dev
-          docker history ${{ env.IMAGE_NAME }}:dev
+          docker image ls hxckr-core:${{ matrix.arch }}-latest
+          docker history hxckr-core:${{ matrix.arch }}-latest
+      - name: Print image info
+        run: |
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
+          docker inspect ${{ env.IMAGE_NAME }}:$TAG-${{ matrix.arch }}
 
-  build-and-push-prod:
-    if: github.event_name == 'release'
+  create-manifest:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Build project
-        run: |
-          cargo install cargo-chef
-          cargo chef prepare --recipe-path recipe.json
-          cargo chef cook --release --recipe-path recipe.json
-          cargo build --release --all-features
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -95,29 +95,22 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-      - name: Run migrations
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      - name: Create and push manifest
         run: |
-          docker run --rm \
-            -e DATABASE_URL \
-            ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
-            diesel migration run
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
+          docker manifest create ${{ env.IMAGE_NAME }}:$TAG \
+            --amend ${{ env.IMAGE_NAME }}:$TAG-amd64 \
+            --amend ${{ env.IMAGE_NAME }}:$TAG-arm64
+          docker manifest annotate ${{ env.IMAGE_NAME }}:$TAG ${{ env.IMAGE_NAME }}:$TAG-amd64 --os linux --arch amd64
+          docker manifest annotate ${{ env.IMAGE_NAME }}:$TAG ${{ env.IMAGE_NAME }}:$TAG-arm64 --os linux --arch arm64 --variant v8
+          docker manifest push --purge ${{ env.IMAGE_NAME }}:$TAG
+          # Inspect individual images
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG-amd64
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG-arm64
+          # Inspect manifest
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG
 
-      - name: Print image size and details
+      - name: Verify manifest
         run: |
-          docker image ls ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          docker history ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
+          docker manifest inspect ${{ env.IMAGE_NAME }}:$TAG

@@ -66,7 +66,7 @@ jobs:
 
       - name: Tag and push Docker image
         run: |
-          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
           ARCH=${{ matrix.arch }}
           docker tag hxckr-core:$ARCH-latest ${{ env.IMAGE_NAME }}:$TAG-$ARCH
           docker push ${{ env.IMAGE_NAME }}:$TAG-$ARCH
@@ -79,7 +79,7 @@ jobs:
           docker history hxckr-core:${{ matrix.arch }}-latest
       - name: Print image info
         run: |
-          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
           docker inspect ${{ env.IMAGE_NAME }}:$TAG-${{ matrix.arch }}
 
   create-manifest:
@@ -97,7 +97,7 @@ jobs:
 
       - name: Create and push manifest
         run: |
-          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
           docker manifest create ${{ env.IMAGE_NAME }}:$TAG \
             --amend ${{ env.IMAGE_NAME }}:$TAG-amd64 \
             --amend ${{ env.IMAGE_NAME }}:$TAG-arm64
@@ -112,5 +112,5 @@ jobs:
 
       - name: Verify manifest
         run: |
-          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          TAG=${{ github.event_name == 'release' && 'main' || 'dev' }}
           docker manifest inspect ${{ env.IMAGE_NAME }}:$TAG

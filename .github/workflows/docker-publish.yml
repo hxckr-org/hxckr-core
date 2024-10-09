@@ -43,7 +43,7 @@ jobs:
       - name: Build with Nix
         run: |
           export NIX_BUILD_CORES=$(nproc)
-          nix-build docker-image.nix -A ${{ matrix.arch }} -o result-${{ matrix.arch }}
+          nix-build build-image.nix -A ${{ matrix.arch }} -o result-${{ matrix.arch }}
           ls -l result-${{ matrix.arch }}
         env:
           NIX_BUILD_CORES: ${{ steps.cores.outputs.count }}

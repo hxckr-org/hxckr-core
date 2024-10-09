@@ -53,17 +53,10 @@ jobs:
 
       - name: Verify image contents and entrypoint
         run: |
-<<<<<<< HEAD
-          docker run --rm hxckr-core:latest ls -l /app
-          docker run --rm hxckr-core:latest ls -l /app/migrations
-          docker run --rm hxckr-core:latest cat /app/entrypoint.sh
-          docker run --rm hxckr-core:latest diesel --version
-=======
           docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app || echo "Failed to list /app contents"
           docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app/migrations || echo "Failed to list migrations"
           docker run --rm hxckr-core:${{ matrix.arch }}-latest cat /app/entrypoint.sh || echo "Failed to cat entrypoint.sh"
           docker run --rm hxckr-core:${{ matrix.arch }}-latest diesel --version || echo "Failed to get diesel version"
->>>>>>> 2fbb14b (chore: add arm64 build to action)
 
       - name: Login to DockerHub
         uses: docker/login-action@v2

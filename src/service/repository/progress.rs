@@ -10,16 +10,22 @@ use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
+use serde_json::Value;
 use uuid::Uuid;
 
 impl Progress {
-    pub fn new(user_id: &str, challenge_id: &str, status: Status) -> Self {
+    pub fn new(
+        user_id: &Uuid,
+        challenge_id: &Uuid,
+        status: Status,
+        progress_details: Option<Value>,
+    ) -> Self {
         Progress {
             id: Uuid::new_v4(),
-            user_id: string_to_uuid(user_id).unwrap(),
-            challenge_id: string_to_uuid(challenge_id).unwrap(),
+            user_id: user_id.clone(),
+            challenge_id: challenge_id.clone(),
             status: status.to_str().to_string(),
-            progress_details: None,
+            progress_details,
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }
@@ -61,9 +67,9 @@ impl Progress {
 
     pub fn get_progress(
         connection: &mut PgConnection,
-        id: Option<String>,
-        user_id: Option<String>,
-        challenge_id: Option<String>,
+        id: Option<Uuid>,
+        user_id: Option<Uuid>,
+        challenge_id: Option<Uuid>,
     ) -> Result<Vec<Progress>> {
         use crate::schema::progress::dsl::{
             challenge_id as challenge_id_col, user_id as user_id_col,
@@ -71,12 +77,8 @@ impl Progress {
 
         match (id, user_id, challenge_id) {
             (Some(id), None, None) => {
-                let id_uuid = string_to_uuid(&id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("Progress ID is not valid")
-                })?;
                 let progress = progress_table
-                    .find(id_uuid)
+                    .find(id)
                     .first::<Progress>(connection)
                     .optional()
                     .map_err(|e| {
@@ -87,12 +89,8 @@ impl Progress {
                 Ok(vec![progress])
             }
             (None, Some(user_id), None) => {
-                let user_id_uuid = string_to_uuid(&user_id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("User ID is not valid")
-                })?;
                 let progress = progress_table
-                    .filter(user_id_col.eq(user_id_uuid))
+                    .filter(user_id_col.eq(user_id))
                     .load::<Progress>(connection)
                     .map_err(|e| {
                         error!("Error getting progress: {}", e);
@@ -107,12 +105,8 @@ impl Progress {
                 Ok(progress)
             }
             (None, None, Some(challenge_id)) => {
-                let challenge_id_uuid = string_to_uuid(&challenge_id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("Challenge ID is not valid")
-                })?;
                 let progress = progress_table
-                    .filter(challenge_id_col.eq(challenge_id_uuid))
+                    .filter(challenge_id_col.eq(challenge_id))
                     .load::<Progress>(connection)
                     .map_err(|e| {
                         error!("Error getting progress: {}", e);

@@ -23,6 +23,7 @@ impl ResponseError for RepositoryError {
             RepositoryError::FailedToGetUser(_) => StatusCode::NOT_FOUND,
             RepositoryError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             RepositoryError::ServerConfigurationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            RepositoryError::NotFound(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

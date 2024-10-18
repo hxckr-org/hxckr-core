@@ -2,11 +2,18 @@ use crate::{
     app::auth::middleware::SessionInfo,
     service::database::{
         conn::DbPool,
-        models::{Challenge, Repository, User},
+        models::{Challenge, Progress, Repository, User},
     },
-    shared::errors::{CreateRepositoryError, RepositoryError},
+    shared::{
+        errors::{CreateProgressError, CreateRepositoryError, RepositoryError},
+        primitives::Status,
+    },
 };
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Scope};
+use diesel::{
+    r2d2::{ConnectionManager, PooledConnection},
+    Connection, PgConnection,
+};
 use log::error;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -154,18 +161,49 @@ async fn create_repo(
         &create_repo_response.repo_url,
         &soft_serve_url,
     );
-    if let Err(e) = Repository::create_repo(&mut conn, repo) {
-        error!("Error creating repository in database: {:#?}", e);
-        return Err(RepositoryError::FailedToCreateRepository(
-            CreateRepositoryError(diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::Unknown,
-                Box::new(e.to_string()),
-            )),
-        ));
-    }
 
-    Ok(HttpResponse::Ok().json(json!({
-        "repo_name": &create_repo_response.repo_name,
-        "repo_url": &create_repo_response.repo_url,
-    })))
+    // assign progress detail of 1 for new repositories
+    // this is used to track the progress of the user
+    // in the challenge
+    let new_progress = Progress::new(
+        &user_id,
+        &challenge.id,
+        Status::NotStarted,
+        Some(json!({
+            "current_step": 1,
+        })),
+    );
+    let result = conn.transaction::<_, RepositoryError, _>(
+        |conn: &mut PooledConnection<ConnectionManager<PgConnection>>| {
+            if let Err(e) = Repository::create_repo(conn, repo) {
+                error!("Error creating repository in database: {:#?}", e);
+                return Err(RepositoryError::FailedToCreateRepository(
+                    CreateRepositoryError(diesel::result::Error::DatabaseError(
+                        diesel::result::DatabaseErrorKind::Unknown,
+                        Box::new(e.to_string()),
+                    )),
+                ));
+            }
+
+            if let Err(e) = Progress::create_progress(conn, new_progress) {
+                error!("Error creating progress in database: {:#?}", e);
+                return Err(RepositoryError::FailedToCreateProgress(
+                    CreateProgressError(diesel::result::Error::DatabaseError(
+                        diesel::result::DatabaseErrorKind::Unknown,
+                        Box::new(e.to_string()),
+                    )),
+                ));
+            }
+
+            Ok(HttpResponse::Ok().json(json!({
+            "repo_name": &create_repo_response.repo_name,
+            "repo_url": &create_repo_response.repo_url,
+            })))
+        },
+    );
+
+    match result {
+        Ok(response) => Ok(response),
+        Err(e) => Err(e),
+    }
 }

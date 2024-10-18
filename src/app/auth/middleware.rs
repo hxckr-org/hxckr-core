@@ -61,6 +61,7 @@ where
         if req.path() == "/api/sign-in"
             || req.path() == "/api/sign-up"
             || req.path() == "/api/health"
+            || req.path() == "/api/progress"
         {
             let fut = self.service.call(req);
             return Box::pin(async move {

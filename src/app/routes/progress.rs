@@ -36,7 +36,7 @@ async fn get_progress(
     })?;
 
     let repo =
-        Repository::get_repo(&mut conn, None, None, Some(&query.repo_url), None).map_err(|e| {
+        Repository::get_repo(&mut conn, None, None, None, Some(&query.repo_url)).map_err(|e| {
             error!("Error getting repository: {}", e);
             RepositoryError::NotFound(e.to_string())
         })?;

@@ -24,6 +24,7 @@ struct NewChallenge {
     title: String,
     description: String,
     difficulty: Difficulty,
+    module_count: i32,
     mode: ChallengeMode,
     repo_url: String,
 }
@@ -113,6 +114,7 @@ async fn create_challenge(
         &challenge.title.to_lowercase(),
         &challenge.description.to_lowercase(),
         &challenge.repo_url.to_lowercase(),
+        &challenge.module_count,
         &challenge.difficulty,
         &challenge.mode,
     );
@@ -126,6 +128,7 @@ async fn create_challenge(
                     "title": challenge.title,
                     "description": challenge.description,
                     "difficulty": challenge.difficulty,
+                    "module_count": challenge.module_count,
                     "mode": challenge.mode,
                     "repo_url": challenge.repo_url,
                 },

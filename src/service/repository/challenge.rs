@@ -6,7 +6,6 @@ use crate::shared::errors::{
     RepositoryError::{FailedToCreateChallenge, FailedToGetChallenge},
 };
 use crate::shared::primitives::{ChallengeMode, Difficulty};
-use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
@@ -17,6 +16,7 @@ impl Challenge {
         title: &str,
         description: &str,
         repo_url: &str,
+        module_count: &i32,
         difficulty: &Difficulty,
         mode: &ChallengeMode,
     ) -> Self {
@@ -26,6 +26,7 @@ impl Challenge {
             description: description.to_string(),
             repo_url: repo_url.to_string(),
             difficulty: difficulty.to_str().to_string(),
+            module_count: module_count.to_owned(),
             mode: mode.to_str().to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
@@ -48,19 +49,16 @@ impl Challenge {
 
     pub fn get_challenge(
         connection: &mut PgConnection,
-        id: Option<String>,
+        id: Option<&Uuid>,
         repo_url: Option<&str>,
     ) -> Result<Challenge> {
         use crate::schema::challenges::dsl::repo_url as repo_url_col;
 
         match (id, repo_url) {
             (Some(id), None) => {
-                let uuid = string_to_uuid(&id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("Challenge ID is not valid")
-                })?;
                 let challenge = challenges_table
-                    .find(uuid)
+                    .find(id)
+                    .select(Challenge::as_select())
                     .first::<Challenge>(connection)
                     .optional()
                     .map_err(|e| {
@@ -73,6 +71,7 @@ impl Challenge {
             (None, Some(repo_url)) => {
                 let challenge = challenges_table
                     .filter(repo_url_col.eq(repo_url))
+                    .select(Challenge::as_select())
                     .first::<Challenge>(connection)
                     .optional()
                     .map_err(|e| {

@@ -51,11 +51,15 @@ impl Challenge {
         connection: &mut PgConnection,
         id: Option<&Uuid>,
         repo_url: Option<&str>,
+        difficulty: Option<&Difficulty>,
+        mode: Option<&ChallengeMode>,
     ) -> Result<Challenge> {
-        use crate::schema::challenges::dsl::repo_url as repo_url_col;
+        use crate::schema::challenges::dsl::{
+            difficulty as difficulty_col, mode as mode_col, repo_url as repo_url_col,
+        };
 
-        match (id, repo_url) {
-            (Some(id), None) => {
+        match (id, repo_url, difficulty, mode) {
+            (Some(id), None, None, None) => {
                 let challenge = challenges_table
                     .find(id)
                     .select(Challenge::as_select())
@@ -68,7 +72,7 @@ impl Challenge {
                     .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
                 Ok(challenge)
             }
-            (None, Some(repo_url)) => {
+            (None, Some(repo_url), None, None) => {
                 let challenge = challenges_table
                     .filter(repo_url_col.eq(repo_url))
                     .select(Challenge::as_select())
@@ -81,8 +85,49 @@ impl Challenge {
                     .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
                 Ok(challenge)
             }
-            (Some(_), Some(_)) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
-            (None, None) => Err(anyhow::anyhow!("No input provided")),
+            (None, None, Some(difficulty), None) => {
+                let challenge = challenges_table
+                    .filter(difficulty_col.eq(difficulty.to_str()))
+                    .select(Challenge::as_select())
+                    .first::<Challenge>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting challenge: {}", e);
+                        FailedToGetChallenge(GetChallengeError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
+                Ok(challenge)
+            }
+            (None, None, None, Some(mode)) => {
+                let challenge = challenges_table
+                    .filter(mode_col.eq(mode.to_str()))
+                    .select(Challenge::as_select())
+                    .first::<Challenge>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting challenge: {}", e);
+                        FailedToGetChallenge(GetChallengeError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
+                Ok(challenge)
+            }
+            (Some(_), None, Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both id and difficulty"))
+            }
+            (Some(_), Some(_), _, _) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
+            (None, Some(_), Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
+            }
+            (None, None, Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
+            }
+            (None, None, None, None) => Err(anyhow::anyhow!("No input provided")),
+            (None, Some(_), None, Some(_)) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and mode"))
+            }
+            (Some(_), None, None, Some(_)) => {
+                Err(anyhow::anyhow!("Cannot provide both id and mode"))
+            }
         }
     }
 }

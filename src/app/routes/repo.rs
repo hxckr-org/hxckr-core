@@ -82,7 +82,7 @@ async fn create_repo(
         }
     };
 
-    let challenge = match Challenge::get_challenge(&mut conn, None, Some(&repo_url)) {
+    let challenge = match Challenge::get_challenge(&mut conn, None, Some(&repo_url), None, None) {
         Ok(challenge) => challenge,
         Err(e) => {
             error!("Error getting challenge for repository url: {}", e);

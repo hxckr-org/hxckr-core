@@ -165,13 +165,14 @@ async fn consume_test_queue(
                 }
             };
             if test_runner_payload.success {
-                let updated_progress = match update_progress(&session.user_id).await {
-                    Ok(progress) => progress,
-                    Err(e) => {
-                        error!("Failed to update progress: {:?}", e);
-                        return Err(anyhow::anyhow!("Failed to update progress"));
-                    }
-                };
+                let updated_progress =
+                    match update_progress(&test_runner_payload.repo_url, &session.user_id).await {
+                        Ok(progress) => progress,
+                        Err(e) => {
+                            error!("Failed to update progress: {:?}", e);
+                            return Err(anyhow::anyhow!("Failed to update progress"));
+                        }
+                    };
                 let combined_message =
                     serde_json::to_string(&(test_runner_payload, updated_progress))?;
                 if let Err(e) = manager_handle

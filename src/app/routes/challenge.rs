@@ -5,7 +5,7 @@ use crate::{
         models::{Challenge, User},
     },
     shared::{
-        errors::{CreateChallengeError, RepositoryError},
+        errors::{CreateChallengeError, GetChallengeError, RepositoryError},
         primitives::{ChallengeMode, Difficulty, UserRole},
     },
 };
@@ -14,9 +14,12 @@ use actix_web::{
 };
 use log::error;
 use serde_json::json;
+use uuid::Uuid;
 
 pub fn init() -> Scope {
-    web::scope("/challenge").route("", web::post().to(create_challenge))
+    web::scope("/challenge")
+        .route("", web::get().to(get_challenge))
+        .route("", web::post().to(create_challenge))
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -24,8 +27,17 @@ struct NewChallenge {
     title: String,
     description: String,
     difficulty: Difficulty,
+    module_count: i32,
     mode: ChallengeMode,
     repo_url: String,
+}
+
+#[derive(serde::Deserialize)]
+struct GetChallengeQuery {
+    id: Option<Uuid>,
+    repo_url: Option<String>,
+    difficulty: Option<Difficulty>,
+    mode: Option<ChallengeMode>,
 }
 
 async fn create_challenge(
@@ -104,7 +116,15 @@ async fn create_challenge(
         Err(e) => return Err(Error::from(RepositoryError::BadRequest(e.to_string()))),
     };
 
-    if Challenge::get_challenge(&mut conn, None, Some(&challenge.repo_url.to_lowercase())).is_ok() {
+    if Challenge::get_challenge(
+        &mut conn,
+        None,
+        Some(&challenge.repo_url.to_lowercase()),
+        None,
+        None,
+    )
+    .is_ok()
+    {
         return Err(Error::from(RepositoryError::BadRequest(
             "Challenge with this repo url already exists".to_string(),
         )));
@@ -113,6 +133,7 @@ async fn create_challenge(
         &challenge.title.to_lowercase(),
         &challenge.description.to_lowercase(),
         &challenge.repo_url.to_lowercase(),
+        &challenge.module_count,
         &challenge.difficulty,
         &challenge.mode,
     );
@@ -126,6 +147,7 @@ async fn create_challenge(
                     "title": challenge.title,
                     "description": challenge.description,
                     "difficulty": challenge.difficulty,
+                    "module_count": challenge.module_count,
                     "mode": challenge.mode,
                     "repo_url": challenge.repo_url,
                 },
@@ -142,4 +164,54 @@ async fn create_challenge(
             }
             _ => RepositoryError::DatabaseError(e.to_string()),
         })?)
+}
+
+async fn get_challenge(
+    query: web::Query<GetChallengeQuery>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    if query.id.is_none()
+        && query.repo_url.is_none()
+        && query.difficulty.is_none()
+        && query.mode.is_none()
+    {
+        return Err(Error::from(RepositoryError::BadRequest(
+            "No query parameters provided".to_string(),
+        )));
+    }
+    let param_count = query.id.is_some() as u8
+        + query.repo_url.is_some() as u8
+        + query.difficulty.is_some() as u8
+        + query.mode.is_some() as u8;
+    if param_count != 1 {
+        return Err(Error::from(RepositoryError::BadRequest(
+            "Only one of the parameters must be passed".to_string(),
+        )));
+    }
+
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    let challenge = Challenge::get_challenge(
+        &mut conn,
+        query.id.as_ref(),
+        query.repo_url.as_deref(),
+        query.difficulty.as_ref(),
+        query.mode.as_ref(),
+    )
+    .map(|challenge| HttpResponse::Ok().json(challenge))
+    .map_err(|e| match e.downcast_ref() {
+        Some(RepositoryError::FailedToGetChallenge(GetChallengeError(e))) => {
+            RepositoryError::FailedToGetChallenge(GetChallengeError(
+                diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::Unknown,
+                    Box::new(e.to_string()),
+                ),
+            ))
+        }
+        _ => RepositoryError::DatabaseError(e.to_string()).into(),
+    })?;
+    Ok(challenge)
 }

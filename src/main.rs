@@ -27,8 +27,11 @@ async fn main() -> std::io::Result<()> {
     if std::env::var("RABBITMQ_URL").is_err() {
         panic!("RABBITMQ_URL is not set");
     }
-    if std::env::var("RABBITMQ_QUEUE_NAME").is_err() {
-        panic!("RABBITMQ_QUEUE_NAME is not set");
+    if std::env::var("WEBHOOK_HANDLER_RABBITMQ_QUEUE_NAME").is_err() {
+        panic!("WEBHOOK_HANDLER_RABBITMQ_QUEUE_NAME is not set");
+    }
+    if std::env::var("TEST_RUNNER_RABBITMQ_QUEUE_NAME").is_err() {
+        panic!("TEST_RUNNER_RABBITMQ_QUEUE_NAME is not set");
     }
 
     let connection_url =

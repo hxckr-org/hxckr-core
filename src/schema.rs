@@ -25,6 +25,7 @@ diesel::table! {
         mode -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        module_count -> Int4,
     }
 }
 

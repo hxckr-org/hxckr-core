@@ -6,7 +6,6 @@ use crate::shared::errors::{
     RepositoryError::{FailedToCreateChallenge, FailedToGetChallenge},
 };
 use crate::shared::primitives::{ChallengeMode, Difficulty};
-use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
@@ -17,6 +16,7 @@ impl Challenge {
         title: &str,
         description: &str,
         repo_url: &str,
+        module_count: &i32,
         difficulty: &Difficulty,
         mode: &ChallengeMode,
     ) -> Self {
@@ -26,6 +26,7 @@ impl Challenge {
             description: description.to_string(),
             repo_url: repo_url.to_string(),
             difficulty: difficulty.to_str().to_string(),
+            module_count: module_count.to_owned(),
             mode: mode.to_str().to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
@@ -48,19 +49,20 @@ impl Challenge {
 
     pub fn get_challenge(
         connection: &mut PgConnection,
-        id: Option<String>,
+        id: Option<&Uuid>,
         repo_url: Option<&str>,
+        difficulty: Option<&Difficulty>,
+        mode: Option<&ChallengeMode>,
     ) -> Result<Challenge> {
-        use crate::schema::challenges::dsl::repo_url as repo_url_col;
+        use crate::schema::challenges::dsl::{
+            difficulty as difficulty_col, mode as mode_col, repo_url as repo_url_col,
+        };
 
-        match (id, repo_url) {
-            (Some(id), None) => {
-                let uuid = string_to_uuid(&id).map_err(|e| {
-                    error!("Error parsing UUID: {}", e);
-                    anyhow::anyhow!("Challenge ID is not valid")
-                })?;
+        match (id, repo_url, difficulty, mode) {
+            (Some(id), None, None, None) => {
                 let challenge = challenges_table
-                    .find(uuid)
+                    .find(id)
+                    .select(Challenge::as_select())
                     .first::<Challenge>(connection)
                     .optional()
                     .map_err(|e| {
@@ -70,9 +72,10 @@ impl Challenge {
                     .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
                 Ok(challenge)
             }
-            (None, Some(repo_url)) => {
+            (None, Some(repo_url), None, None) => {
                 let challenge = challenges_table
                     .filter(repo_url_col.eq(repo_url))
+                    .select(Challenge::as_select())
                     .first::<Challenge>(connection)
                     .optional()
                     .map_err(|e| {
@@ -82,8 +85,49 @@ impl Challenge {
                     .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
                 Ok(challenge)
             }
-            (Some(_), Some(_)) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
-            (None, None) => Err(anyhow::anyhow!("No input provided")),
+            (None, None, Some(difficulty), None) => {
+                let challenge = challenges_table
+                    .filter(difficulty_col.eq(difficulty.to_str()))
+                    .select(Challenge::as_select())
+                    .first::<Challenge>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting challenge: {}", e);
+                        FailedToGetChallenge(GetChallengeError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
+                Ok(challenge)
+            }
+            (None, None, None, Some(mode)) => {
+                let challenge = challenges_table
+                    .filter(mode_col.eq(mode.to_str()))
+                    .select(Challenge::as_select())
+                    .first::<Challenge>(connection)
+                    .optional()
+                    .map_err(|e| {
+                        error!("Error getting challenge: {}", e);
+                        FailedToGetChallenge(GetChallengeError(e))
+                    })?
+                    .ok_or_else(|| anyhow::anyhow!("Challenge not found"))?;
+                Ok(challenge)
+            }
+            (Some(_), None, Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both id and difficulty"))
+            }
+            (Some(_), Some(_), _, _) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
+            (None, Some(_), Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
+            }
+            (None, None, Some(_), _) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
+            }
+            (None, None, None, None) => Err(anyhow::anyhow!("No input provided")),
+            (None, Some(_), None, Some(_)) => {
+                Err(anyhow::anyhow!("Cannot provide both repo_url and mode"))
+            }
+            (Some(_), None, None, Some(_)) => {
+                Err(anyhow::anyhow!("Cannot provide both id and mode"))
+            }
         }
     }
 }

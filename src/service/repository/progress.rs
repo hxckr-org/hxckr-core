@@ -6,7 +6,6 @@ use crate::shared::errors::{
     UpdateProgressError,
 };
 use crate::shared::primitives::Status;
-use crate::shared::utils::string_to_uuid;
 use anyhow::Result;
 use diesel::prelude::*;
 use log::error;
@@ -46,30 +45,48 @@ impl Progress {
 
     pub fn update_progress(
         connection: &mut PgConnection,
-        id: &str,
-        status: &str,
+        id: &Uuid,
+        status: Status,
+        progress_details: Option<Value>,
     ) -> Result<Progress> {
-        use crate::schema::progress::dsl::status as status_col;
-        let id_uuid = string_to_uuid(id).map_err(|e| {
-            error!("Error parsing UUID: {}", e);
-            anyhow::anyhow!("Progress ID is not valid")
-        })?;
-        let updated_progress = diesel::update(progress_table.find(id_uuid))
-            .set(status_col.eq(status))
-            .returning(Progress::as_returning())
-            .get_result(connection)
-            .map_err(|e| {
-                error!("Error updating progress: {}", e);
-                FailedToUpdateProgress(UpdateProgressError(e))
-            })?;
-        Ok(updated_progress)
+        use crate::schema::progress::dsl::{
+            progress_details as progress_details_col, status as status_col,
+        };
+
+        match Some(progress_details) {
+            Some(details) => {
+                let updated_progress = diesel::update(progress_table.find(id))
+                    .set((
+                        status_col.eq(status.to_str()),
+                        progress_details_col.eq(details),
+                    ))
+                    .returning(Progress::as_returning())
+                    .get_result(connection)
+                    .map_err(|e| {
+                        error!("Error updating progress: {}", e);
+                        FailedToUpdateProgress(UpdateProgressError(e))
+                    })?;
+                Ok(updated_progress)
+            }
+            None => {
+                let updated_progress = diesel::update(progress_table.find(id))
+                    .set(status_col.eq(status.to_str()))
+                    .returning(Progress::as_returning())
+                    .get_result(connection)
+                    .map_err(|e| {
+                        error!("Error updating progress: {}", e);
+                        FailedToUpdateProgress(UpdateProgressError(e))
+                    })?;
+                Ok(updated_progress)
+            }
+        }
     }
 
     pub fn get_progress(
         connection: &mut PgConnection,
-        id: Option<Uuid>,
-        user_id: Option<Uuid>,
-        challenge_id: Option<Uuid>,
+        id: Option<&Uuid>,
+        user_id: Option<&Uuid>,
+        challenge_id: Option<&Uuid>,
     ) -> Result<Vec<Progress>> {
         use crate::schema::progress::dsl::{
             challenge_id as challenge_id_col, user_id as user_id_col,

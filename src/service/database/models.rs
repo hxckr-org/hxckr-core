@@ -28,6 +28,7 @@ pub struct Challenge {
     pub description: String,
     pub repo_url: String,
     pub difficulty: String,
+    pub module_count: i32,
     pub mode: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -49,7 +50,7 @@ pub struct Exercise {
     pub status: String,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug, Serialize)]
+#[derive(Queryable, Insertable, Selectable, Debug, Serialize, Clone)]
 #[diesel(table_name = crate::schema::progress)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]

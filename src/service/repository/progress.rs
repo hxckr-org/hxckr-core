@@ -87,7 +87,7 @@ impl Progress {
         id: Option<&Uuid>,
         user_id: Option<&Uuid>,
         challenge_id: Option<&Uuid>,
-    ) -> Result<Vec<Progress>> {
+    ) -> Result<Progress> {
         use crate::schema::progress::dsl::{
             challenge_id as challenge_id_col, user_id as user_id_col,
         };
@@ -103,22 +103,16 @@ impl Progress {
                         FailedToGetProgress(GetProgressError(e))
                     })?
                     .ok_or_else(|| anyhow::anyhow!("Progress not found"))?;
-                Ok(vec![progress])
+                Ok(progress)
             }
             (None, Some(user_id), None) => {
                 let progress = progress_table
                     .filter(user_id_col.eq(user_id))
-                    .load::<Progress>(connection)
+                    .first::<Progress>(connection)
                     .map_err(|e| {
                         error!("Error getting progress: {}", e);
                         FailedToGetProgress(GetProgressError(e))
                     })?;
-                if progress.is_empty() {
-                    return Err(anyhow::anyhow!(
-                        "Progress for user id {} not found",
-                        user_id
-                    ));
-                }
                 Ok(progress)
             }
             (None, None, Some(challenge_id)) => {
@@ -135,7 +129,7 @@ impl Progress {
                         challenge_id
                     ));
                 }
-                Ok(progress)
+                Ok(progress[0].clone())
             }
             (None, None, None) => Err(anyhow::anyhow!("No input provided")),
             _ => Err(anyhow::anyhow!("Invalid input")),

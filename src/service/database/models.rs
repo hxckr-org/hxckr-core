@@ -64,7 +64,7 @@ pub struct Progress {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug, Clone)]
+#[derive(Queryable, Insertable, Selectable, Debug, Clone, Serialize)]
 #[diesel(table_name = crate::schema::repositories)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]
@@ -169,5 +169,39 @@ pub struct NewUserBadge {
     pub user_id: Uuid,
     pub badge_id: i32,
     pub awarded_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Debug, Queryable, Serialize)]
+pub struct RepositoryWithRelations {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub challenge_id: Uuid,
+    pub repo_url: String,
+    pub soft_serve_url: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub challenge: ChallengeInfo,
+    pub progress: ProgressInfo,
+}
+
+#[derive(Debug, Queryable, Serialize)]
+pub struct ChallengeInfo {
+    pub title: String,
+    pub description: String,
+    pub repo_url: String,
+    pub difficulty: String,
+    pub module_count: i32,
+    pub mode: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Debug, Queryable, Serialize)]
+pub struct ProgressInfo {
+    pub id: Uuid,
+    pub status: String,
+    pub progress_details: Option<serde_json::Value>,
+    pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

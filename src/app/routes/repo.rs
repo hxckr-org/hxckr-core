@@ -6,7 +6,7 @@ use crate::{
     },
     shared::{
         errors::{CreateProgressError, CreateRepositoryError, RepositoryError},
-        primitives::Status,
+        primitives::{PaginationParams, Status},
     },
 };
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Scope};
@@ -33,6 +33,8 @@ pub struct CreateRepoRequest {
 pub struct GetRepoQuery {
     repo_url: Option<String>,
     soft_serve_url: Option<String>,
+    per_page: Option<i64>,
+    page: Option<i64>,
 }
 
 pub fn init() -> Scope {
@@ -240,11 +242,17 @@ async fn get_repo(
         }
     };
 
+    let pagination = PaginationParams {
+        page: query.page,
+        per_page: query.per_page,
+    };
+
     let repositories = Repository::get_repo_with_relations(
         &mut conn,
         &user_id,
         query.repo_url.as_deref(),
         query.soft_serve_url.as_deref(),
+        &pagination,
     )
     .map_err(|e| {
         error!("Error fetching repositories: {}", e);

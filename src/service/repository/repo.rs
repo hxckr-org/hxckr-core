@@ -6,6 +6,7 @@ use crate::shared::errors::{
     CreateRepositoryError, GetRepositoryError,
     RepositoryError::{FailedToCreateRepository, FailedToGetRepository},
 };
+use crate::shared::primitives::{PaginatedResponse, PaginationParams};
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
@@ -134,7 +135,8 @@ impl Repository {
         user_id: &Uuid,
         repo_url: Option<&str>,
         soft_serve_url: Option<&str>,
-    ) -> Result<Vec<RepositoryWithRelations>> {
+        pagination: &PaginationParams,
+    ) -> Result<PaginatedResponse<RepositoryWithRelations>> {
         use crate::schema::{challenges, progress, repositories};
 
         if repo_url.is_some() && soft_serve_url.is_some() {
@@ -142,6 +144,10 @@ impl Repository {
                 "Multiple parameters are not allowed. Please provide only one parameter."
             ));
         }
+
+        let page = pagination.page.unwrap_or(1);
+        let per_page = pagination.per_page.unwrap_or(10);
+        let offset = (page - 1) * per_page;
 
         let mut query = repositories::table
             .inner_join(challenges::table)
@@ -161,7 +167,26 @@ impl Repository {
             query = query.filter(repositories::soft_serve_url.eq(url));
         }
 
+        let total: i64 = repositories::table
+            .inner_join(challenges::table)
+            .inner_join(
+                progress::table.on(progress::user_id
+                    .eq(repositories::user_id)
+                    .and(progress::challenge_id.eq(repositories::challenge_id))),
+            )
+            .filter(repositories::user_id.eq(user_id))
+            .count()
+            .get_result(connection)
+            .map_err(|e| {
+                error!("Error getting total count: {}", e);
+                anyhow::anyhow!("Failed to get total count")
+            })?;
+
+        let total_pages = (total as f64 / per_page as f64).ceil() as i64;
+
         let results = query
+            .offset(offset)
+            .limit(per_page)
             .select((
                 // Repository fields
                 repositories::id,
@@ -223,21 +248,11 @@ impl Repository {
             })?;
 
         // Transform the raw results into our nested structure
-        Ok(results
-            .into_iter()
-            .map(
-                |(
-                    id,
-                    user_id,
-                    challenge_id,
-                    repo_url,
-                    soft_serve_url,
-                    created_at,
-                    updated_at,
-                    challenge_fields,
-                    progress_fields,
-                )| {
-                    RepositoryWithRelations {
+        Ok(PaginatedResponse {
+            data: results
+                .into_iter()
+                .map(
+                    |(
                         id,
                         user_id,
                         challenge_id,
@@ -245,26 +260,42 @@ impl Repository {
                         soft_serve_url,
                         created_at,
                         updated_at,
-                        challenge: ChallengeInfo {
-                            title: challenge_fields.0,
-                            description: challenge_fields.1,
-                            repo_url: challenge_fields.2,
-                            difficulty: challenge_fields.3,
-                            module_count: challenge_fields.4,
-                            mode: challenge_fields.5,
-                            created_at: challenge_fields.6,
-                            updated_at: challenge_fields.7,
-                        },
-                        progress: ProgressInfo {
-                            id: progress_fields.0,
-                            status: progress_fields.1,
-                            progress_details: progress_fields.2,
-                            created_at: progress_fields.3,
-                            updated_at: progress_fields.4,
-                        },
-                    }
-                },
-            )
-            .collect::<Vec<RepositoryWithRelations>>())
+                        challenge_fields,
+                        progress_fields,
+                    )| {
+                        RepositoryWithRelations {
+                            id,
+                            user_id,
+                            challenge_id,
+                            repo_url,
+                            soft_serve_url,
+                            created_at,
+                            updated_at,
+                            challenge: ChallengeInfo {
+                                title: challenge_fields.0,
+                                description: challenge_fields.1,
+                                repo_url: challenge_fields.2,
+                                difficulty: challenge_fields.3,
+                                module_count: challenge_fields.4,
+                                mode: challenge_fields.5,
+                                created_at: challenge_fields.6,
+                                updated_at: challenge_fields.7,
+                            },
+                            progress: ProgressInfo {
+                                id: progress_fields.0,
+                                status: progress_fields.1,
+                                progress_details: progress_fields.2,
+                                created_at: progress_fields.3,
+                                updated_at: progress_fields.4,
+                            },
+                        }
+                    },
+                )
+                .collect::<Vec<RepositoryWithRelations>>(),
+            total,
+            page,
+            per_page,
+            total_pages,
+        })
     }
 }

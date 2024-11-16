@@ -29,10 +29,11 @@ pub struct CreateRepoRequest {
     repo_url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GetRepoQuery {
     repo_url: Option<String>,
     soft_serve_url: Option<String>,
+    status: Option<Status>,
     per_page: Option<i64>,
     page: Option<i64>,
 }
@@ -222,7 +223,7 @@ async fn get_repo(
     query: web::Query<GetRepoQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, RepositoryError> {
-    if query.repo_url.is_some() && query.soft_serve_url.is_some() {
+    if query.repo_url.is_some() && query.soft_serve_url.is_some() && query.status.is_some() {
         return Err(RepositoryError::BadRequest(
             "Multiple parameters are not allowed. Please provide only one parameter.".to_string(),
         ));
@@ -252,6 +253,7 @@ async fn get_repo(
         &user_id,
         query.repo_url.as_deref(),
         query.soft_serve_url.as_deref(),
+        query.status.as_ref(),
         &pagination,
     )
     .map_err(|e| {

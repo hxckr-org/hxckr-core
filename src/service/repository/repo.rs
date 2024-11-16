@@ -6,7 +6,7 @@ use crate::shared::errors::{
     CreateRepositoryError, GetRepositoryError,
     RepositoryError::{FailedToCreateRepository, FailedToGetRepository},
 };
-use crate::shared::primitives::{PaginatedResponse, PaginationParams};
+use crate::shared::primitives::{PaginatedResponse, PaginationParams, Status};
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
@@ -135,6 +135,7 @@ impl Repository {
         user_id: &Uuid,
         repo_url: Option<&str>,
         soft_serve_url: Option<&str>,
+        status: Option<&Status>,
         pagination: &PaginationParams,
     ) -> Result<PaginatedResponse<RepositoryWithRelations>> {
         use crate::schema::{challenges, progress, repositories};
@@ -165,6 +166,10 @@ impl Repository {
 
         if let Some(url) = soft_serve_url {
             query = query.filter(repositories::soft_serve_url.eq(url));
+        }
+
+        if let Some(status) = status {
+            query = query.filter(progress::status.eq(status.to_str()));
         }
 
         let total: i64 = repositories::table

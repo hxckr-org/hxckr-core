@@ -71,6 +71,7 @@ impl UserRole {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Status {
     Completed,
     InProgress,

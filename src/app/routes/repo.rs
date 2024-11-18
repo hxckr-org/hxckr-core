@@ -6,7 +6,7 @@ use crate::{
     },
     shared::{
         errors::{CreateProgressError, CreateRepositoryError, RepositoryError},
-        primitives::Status,
+        primitives::{PaginationParams, Status},
     },
 };
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Scope};
@@ -18,7 +18,6 @@ use log::error;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateRepoResponse {
     repo_name: String,
@@ -30,8 +29,19 @@ pub struct CreateRepoRequest {
     repo_url: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct GetRepoQuery {
+    repo_url: Option<String>,
+    soft_serve_url: Option<String>,
+    status: Option<Status>,
+    per_page: Option<i64>,
+    page: Option<i64>,
+}
+
 pub fn init() -> Scope {
-    web::scope("/repo").route("", web::post().to(create_repo))
+    web::scope("/repo")
+        .route("", web::post().to(create_repo))
+        .route("", web::get().to(get_repo))
 }
 
 async fn create_repo(
@@ -206,4 +216,50 @@ async fn create_repo(
         Ok(response) => Ok(response),
         Err(e) => Err(e),
     }
+}
+
+async fn get_repo(
+    req: HttpRequest,
+    query: web::Query<GetRepoQuery>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, RepositoryError> {
+    if query.repo_url.is_some() && query.soft_serve_url.is_some() && query.status.is_some() {
+        return Err(RepositoryError::BadRequest(
+            "Multiple parameters are not allowed. Please provide only one parameter.".to_string(),
+        ));
+    }
+
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    let user_id = match req.extensions().get::<SessionInfo>() {
+        Some(session_info) => session_info.user_id,
+        None => {
+            return Err(RepositoryError::BadRequest(
+                "User not authenticated".to_string(),
+            ));
+        }
+    };
+
+    let pagination = PaginationParams {
+        page: query.page,
+        per_page: query.per_page,
+    };
+
+    let repositories = Repository::get_repo_with_relations(
+        &mut conn,
+        &user_id,
+        query.repo_url.as_deref(),
+        query.soft_serve_url.as_deref(),
+        query.status.as_ref(),
+        &pagination,
+    )
+    .map_err(|e| {
+        error!("Error fetching repositories: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    Ok(HttpResponse::Ok().json(repositories))
 }

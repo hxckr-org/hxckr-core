@@ -71,6 +71,7 @@ impl UserRole {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Status {
     Completed,
     InProgress,
@@ -119,4 +120,19 @@ impl SubmissionStatus {
             SubmissionStatus::Passed => "passed",
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaginationParams {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedResponse<T> {
+    pub data: Vec<T>,
+    pub total: i64,
+    pub page: i64,
+    pub per_page: i64,
+    pub total_pages: i64,
 }

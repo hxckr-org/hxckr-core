@@ -115,12 +115,12 @@ impl Challenge {
                 Err(anyhow::anyhow!("Cannot provide both id and difficulty"))
             }
             (Some(_), Some(_), _, _) => Err(anyhow::anyhow!("Cannot provide both id and repo_url")),
-            (None, Some(_), Some(_), _) => {
-                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
-            }
-            (None, None, Some(_), _) => {
-                Err(anyhow::anyhow!("Cannot provide both repo_url and difficulty"))
-            }
+            (None, Some(_), Some(_), _) => Err(anyhow::anyhow!(
+                "Cannot provide both repo_url and difficulty"
+            )),
+            (None, None, Some(_), _) => Err(anyhow::anyhow!(
+                "Cannot provide both repo_url and difficulty"
+            )),
             (None, None, None, None) => Err(anyhow::anyhow!("No input provided")),
             (None, Some(_), None, Some(_)) => {
                 Err(anyhow::anyhow!("Cannot provide both repo_url and mode"))
@@ -129,5 +129,15 @@ impl Challenge {
                 Err(anyhow::anyhow!("Cannot provide both id and mode"))
             }
         }
+    }
+
+    pub fn get_all_challenges(connection: &mut PgConnection) -> Result<Vec<Challenge>> {
+        challenges_table
+            .select(Challenge::as_select())
+            .load(connection)
+            .map_err(|e| {
+                error!("Error getting challenges: {}", e);
+                FailedToGetChallenge(GetChallengeError(e)).into()
+            })
     }
 }

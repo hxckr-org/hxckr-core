@@ -170,15 +170,32 @@ async fn get_challenge(
     query: web::Query<GetChallengeQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    // If no parameters are provided, return all challenges
     if query.id.is_none()
         && query.repo_url.is_none()
         && query.difficulty.is_none()
         && query.mode.is_none()
     {
-        return Err(Error::from(RepositoryError::BadRequest(
-            "No query parameters provided".to_string(),
-        )));
+        return Ok(Challenge::get_all_challenges(&mut conn)
+            .map(|challenges| HttpResponse::Ok().json(challenges))
+            .map_err(|e| match e.downcast_ref() {
+                Some(RepositoryError::FailedToGetChallenge(GetChallengeError(e))) => {
+                    RepositoryError::FailedToGetChallenge(GetChallengeError(
+                        diesel::result::Error::DatabaseError(
+                            diesel::result::DatabaseErrorKind::Unknown,
+                            Box::new(e.to_string()),
+                        ),
+                    ))
+                }
+                _ => RepositoryError::DatabaseError(e.to_string()).into(),
+            })?);
     }
+
     let param_count = query.id.is_some() as u8
         + query.repo_url.is_some() as u8
         + query.difficulty.is_some() as u8
@@ -188,11 +205,6 @@ async fn get_challenge(
             "Only one of the parameters must be passed".to_string(),
         )));
     }
-
-    let mut conn = pool.get().map_err(|e| {
-        error!("Error getting db connection from pool: {}", e);
-        RepositoryError::DatabaseError(e.to_string())
-    })?;
 
     let challenge = Challenge::get_challenge(
         &mut conn,

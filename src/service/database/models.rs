@@ -186,6 +186,13 @@ pub struct RepositoryWithRelations {
     pub challenge: ChallengeInfo,
     pub progress: ProgressInfo,
 }
+#[derive(Debug, Queryable, Serialize)]
+pub struct AttemptInfo {
+    pub challenge_id: Uuid,
+    pub username: String,
+    pub total_score: i32,
+    pub module_count: i32,
+}
 
 #[derive(Debug, Queryable, Serialize)]
 pub struct ChallengeInfo {

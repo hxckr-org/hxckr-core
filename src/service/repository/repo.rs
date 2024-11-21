@@ -1,12 +1,12 @@
 use crate::schema::repositories::table as repositories;
 use crate::service::database::models::{
-    ChallengeInfo, ProgressInfo, Repository, RepositoryWithRelations,
+    AttemptInfo, ChallengeInfo, ProgressInfo, Repository, RepositoryWithRelations,
 };
 use crate::shared::errors::{
     CreateRepositoryError, GetRepositoryError,
     RepositoryError::{FailedToCreateRepository, FailedToGetRepository},
 };
-use crate::shared::primitives::{PaginatedResponse, PaginationParams, Status};
+use crate::shared::primitives::{PaginatedResponse, PaginationParams, Period, Status};
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
@@ -404,5 +404,73 @@ impl Repository {
                 updated_at: result.8 .4,
             },
         })
+    }
+
+    pub fn get_all_repos(
+        connection: &mut PgConnection,
+        period: &Period,
+        challenge_id: &Uuid,
+    ) -> Result<Vec<AttemptInfo>> {
+        use crate::schema::{challenges, progress, repositories, users};
+        use chrono::{Datelike, Duration, Utc};
+
+        let now = Utc::now().naive_utc();
+        let start_date = match period {
+            Period::Today => now
+                .date()
+                .and_hms_opt(0, 0, 0)
+                .ok_or_else(|| anyhow::anyhow!("Failed to create start date for today"))?,
+            Period::ThisWeek => {
+                let week_start = now - Duration::days(now.weekday().num_days_from_monday() as i64);
+                week_start
+                    .date()
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to create start date for week"))?
+            }
+            Period::ThisMonth => now
+                .with_day(1)
+                .ok_or_else(|| anyhow::anyhow!("Failed to set day to 1"))?
+                .date()
+                .and_hms_opt(0, 0, 0)
+                .ok_or_else(|| anyhow::anyhow!("Failed to create start date for month"))?,
+            Period::AllTime => chrono::DateTime::from_timestamp(0, 0)
+                .ok_or_else(|| anyhow::anyhow!("Failed to create Unix epoch timestamp"))?
+                .naive_utc(),
+        };
+
+        let results = repositories::table
+            .inner_join(challenges::table)
+            .inner_join(
+                progress::table.on(progress::user_id
+                    .eq(repositories::user_id)
+                    .and(progress::challenge_id.eq(repositories::challenge_id))),
+            )
+            .inner_join(users::table.on(users::id.eq(repositories::user_id)))
+            .filter(repositories::created_at.ge(start_date))
+            .filter(repositories::challenge_id.eq(challenge_id))
+            .select((
+                repositories::challenge_id,
+                users::username,
+                progress::progress_details.nullable(),
+                challenges::module_count,
+            ))
+            .load::<(Uuid, String, Option<serde_json::Value>, i32)>(connection)?;
+
+        Ok(results
+            .into_iter()
+            .map(|(challenge_id, username, progress_details, module_count)| {
+                let total_score = progress_details
+                    .and_then(|details| details.get("current_step").cloned())
+                    .and_then(|step| step.as_i64())
+                    .unwrap_or(0) as i32;
+
+                AttemptInfo {
+                    challenge_id,
+                    username,
+                    total_score,
+                    module_count,
+                }
+            })
+            .collect())
     }
 }

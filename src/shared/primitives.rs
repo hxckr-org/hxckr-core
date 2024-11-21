@@ -136,3 +136,11 @@ pub struct PaginatedResponse<T> {
     pub per_page: i64,
     pub total_pages: i64,
 }
+
+#[derive(Debug, Deserialize)]
+pub enum Period {
+    Today,
+    ThisWeek,
+    ThisMonth,
+    AllTime,
+}

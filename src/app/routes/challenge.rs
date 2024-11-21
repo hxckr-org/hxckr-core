@@ -20,7 +20,11 @@ pub fn init() -> Scope {
     web::scope("/challenge")
         .route("", web::get().to(get_challenge))
         .route("", web::post().to(create_challenge))
+<<<<<<< Updated upstream
         .route("/attempts", web::get().to(get_all_attempts))
+=======
+        .route("", web::delete().to(delete_challenge))
+>>>>>>> Stashed changes
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -42,9 +46,14 @@ struct GetChallengeQuery {
 }
 
 #[derive(serde::Deserialize)]
+<<<<<<< Updated upstream
 struct GetAllAttemptsQuery {
     period: Option<Period>,
     challenge_id: Option<Uuid>,
+=======
+struct DeleteChallengeQuery {
+    id: Uuid,
+>>>>>>> Stashed changes
 }
 
 async fn create_challenge(
@@ -235,6 +244,7 @@ async fn get_challenge(
     Ok(challenge)
 }
 
+<<<<<<< Updated upstream
 async fn get_all_attempts(
     query: web::Query<GetAllAttemptsQuery>,
     pool: web::Data<DbPool>,
@@ -252,11 +262,19 @@ async fn get_all_attempts(
         }
     };
 
+=======
+async fn delete_challenge(
+    req: HttpRequest,
+    query: web::Query<DeleteChallengeQuery>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+>>>>>>> Stashed changes
     let mut conn = pool.get().map_err(|e| {
         error!("Error getting db connection from pool: {}", e);
         RepositoryError::DatabaseError(e.to_string())
     })?;
 
+<<<<<<< Updated upstream
     let attempts = Repository::get_all_repos(
         &mut conn,
         period,
@@ -275,4 +293,59 @@ async fn get_all_attempts(
         _ => RepositoryError::DatabaseError(e.to_string()).into(),
     })?;
     Ok(attempts)
+=======
+    let user_id = match req.extensions().get::<SessionInfo>() {
+        Some(session_info) => session_info.user_id,
+        None => {
+            return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).json(json!({
+                "status": "error",
+                "message": "Unauthorized."
+            })));
+        }
+    };
+
+    let user = match User::get_user(&mut conn, Some(&user_id), None, None, None) {
+        Ok(user) => user,
+        Err(e) => {
+            error!("Error getting user: {}", e);
+            return Err(Error::from(RepositoryError::BadRequest(
+                "User not found".to_string(),
+            )));
+        }
+    };
+
+    if user.role != UserRole::Admin.to_str() {
+        return Ok(HttpResponse::build(StatusCode::FORBIDDEN).json(json!({
+            "status": "error",
+            "message": "Forbidden. Only admins can delete challenges."
+        })));
+    }
+
+    let challenge_id = query.id;
+
+    // Check if challenge exists
+    match Challenge::get_challenge(&mut conn, Some(&challenge_id), None, None, None) {
+        Ok(_) => (),
+        Err(_) => {
+            return Ok(HttpResponse::build(StatusCode::NOT_FOUND).json(json!({
+                "status": "error",
+                "message": "Challenge not found"
+            })));
+        }
+    }
+
+    match Challenge::delete(&mut conn, &challenge_id) {
+        Ok(_) => Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "message": "Challenge deleted successfully"
+        }))),
+        Err(e) => {
+            error!("Error deleting challenge: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "status": "error",
+                "message": "Failed to delete challenge"
+            })))
+        }
+    }
+>>>>>>> Stashed changes
 }

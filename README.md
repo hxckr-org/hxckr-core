@@ -135,6 +135,8 @@ The workflow will build and push a new Docker image on each push to the main bra
 
 ## Development
 
+> Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file for more details on how to contribute to this project.
+
 ### Spell Checking
 
 To maintain consistent spelling across the project, we use the [`typos crate`](https://github.com/crate-ci/typos) for spell checking. Follow these steps to run the spell check locally:

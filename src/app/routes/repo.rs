@@ -2,10 +2,12 @@ use crate::{
     app::auth::middleware::SessionInfo,
     service::database::{
         conn::DbPool,
-        models::{Challenge, Progress, Repository, User},
+        models::{Challenge, Leaderboard, Progress, Repository, User},
     },
     shared::{
-        errors::{CreateProgressError, CreateRepositoryError, RepositoryError},
+        errors::{
+            CreateProgressError, CreateRepositoryError, RepositoryError, UpdateLeaderboardError,
+        },
         primitives::{PaginationParams, Status},
     },
 };
@@ -105,6 +107,14 @@ async fn create_repo(
         }
     };
 
+    let leaderboard = match Leaderboard::get_leaderboard(&mut conn, Some(&user_id)) {
+        Ok(leaderboard) => leaderboard[0].clone(),
+        Err(e) => {
+            error!("Error getting leaderboard: {}", e);
+            return Err(RepositoryError::DatabaseError(e.to_string()));
+        }
+    };
+
     let repo_name = repo_url
         .rsplit("/")
         .next()
@@ -185,6 +195,10 @@ async fn create_repo(
             "current_step": 1,
         })),
     );
+
+    // update leaderboard with expected total score
+    let expected_total_score = leaderboard.score + challenge.module_count;
+
     let result = conn.transaction::<_, RepositoryError, _>(
         |conn: &mut PooledConnection<ConnectionManager<PgConnection>>| {
             if let Err(e) = Repository::create_repo(conn, repo) {
@@ -201,6 +215,18 @@ async fn create_repo(
                 error!("Error creating progress in database: {:#?}", e);
                 return Err(RepositoryError::FailedToCreateProgress(
                     CreateProgressError(diesel::result::Error::DatabaseError(
+                        diesel::result::DatabaseErrorKind::Unknown,
+                        Box::new(e.to_string()),
+                    )),
+                ));
+            }
+
+            if let Err(e) =
+                Leaderboard::update(conn, &user_id, None, Some(expected_total_score), None)
+            {
+                error!("Error updating leaderboard in database: {:#?}", e);
+                return Err(RepositoryError::FailedToUpdateLeaderboard(
+                    UpdateLeaderboardError(diesel::result::Error::DatabaseError(
                         diesel::result::DatabaseErrorKind::Unknown,
                         Box::new(e.to_string()),
                     )),

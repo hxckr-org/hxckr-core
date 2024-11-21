@@ -107,7 +107,7 @@ pub struct Session {
     pub expires_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug)]
+#[derive(Queryable, Insertable, Selectable, Debug, Clone, Serialize)]
 #[diesel(table_name = crate::schema::leaderboard)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]
@@ -115,6 +115,7 @@ pub struct Leaderboard {
     pub id: i32,
     pub user_id: Uuid,
     pub score: i32,
+    pub expected_total_score: i32,
     pub achievements: Option<serde_json::Value>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -125,6 +126,7 @@ pub struct Leaderboard {
 pub struct NewLeaderboard {
     pub user_id: Uuid,
     pub score: i32,
+    pub expected_total_score: i32,
     pub achievements: Option<serde_json::Value>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,

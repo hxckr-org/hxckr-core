@@ -132,4 +132,8 @@ impl User {
             _ => Err(anyhow::anyhow!("No input provided")),
         }
     }
+
+    pub fn get_all_users(conn: &mut PgConnection) -> QueryResult<Vec<User>> {
+        users::table.select(User::as_select()).load(conn)
+    }
 }

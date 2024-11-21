@@ -2,11 +2,13 @@ use actix_cors::Cors;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use app::{
     auth::middleware::AuthMiddleware,
+    init::initialize_leaderboards,
     routes,
     websockets::{handler::websocket_handler, manager::WebSocketManagerHandle},
 };
 use dotenvy::dotenv;
 use env_logger::Env;
+use log::error;
 use service::{database::conn::get_connection_pool, queue::consume_queue};
 
 mod app;
@@ -37,6 +39,20 @@ async fn main() -> std::io::Result<()> {
     let connection_url =
         std::env::var("CONNECTION_URL").unwrap_or_else(|_| "127.0.0.1:4925".to_string());
     let pool = get_connection_pool();
+
+    // Initialize leaderboards before starting server
+    // This is done to ensure that leaderboards are created for all users
+    // since we have some users created before the leaderboard service was
+    // added to signup.
+    // TODO: Remove this once all users have leaderboard records
+    if let Err(e) = initialize_leaderboards(&pool).await {
+        error!("Failed to initialize leaderboards: {}", e);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to initialize leaderboards: {}", e),
+        ));
+    }
+
     let manager_handle = WebSocketManagerHandle::new();
     let manager_handle_clone = manager_handle.clone();
 

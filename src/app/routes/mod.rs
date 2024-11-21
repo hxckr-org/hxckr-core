@@ -8,6 +8,7 @@ pub mod users;
 pub mod repo;
 pub mod challenge;
 pub mod progress;
+pub mod leaderboard;
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(health::init());
@@ -17,4 +18,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(repo::init());
     cfg.service(challenge::init());
     cfg.service(progress::init());
+    cfg.service(leaderboard::init());
 }

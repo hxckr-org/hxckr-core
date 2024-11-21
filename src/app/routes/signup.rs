@@ -1,10 +1,10 @@
 use crate::{
     service::database::{
         conn::DbPool,
-        models::{Session, User},
+        models::{Leaderboard, Session, User},
     },
     shared::{
-        errors::{CreateUserError, RepositoryError},
+        errors::{CreateLeaderboardError, CreateUserError, RepositoryError},
         primitives::UserRole,
         utils::generate_session_token,
     },
@@ -14,8 +14,8 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     Connection, PgConnection,
 };
-use serde_json::json;
 use log::error;
+use serde_json::json;
 #[derive(serde::Deserialize)]
 struct NewUser {
     username: String,
@@ -78,6 +78,16 @@ async fn signup(
             })?;
             let token = generate_session_token();
             let user_id = created_user.id;
+
+            let leaderboard = Leaderboard::new(&user_id, None, 0, 0);
+            Leaderboard::create(conn, leaderboard).map_err(|e| {
+                RepositoryError::FailedToCreateLeaderboard(CreateLeaderboardError(
+                    diesel::result::Error::DatabaseError(
+                        diesel::result::DatabaseErrorKind::Unknown,
+                        Box::new(e.to_string()),
+                    ),
+                ))
+            })?;
 
             let session = Session::new(&user_id, &token, &user.provider.to_lowercase());
             Session::create(conn, session)

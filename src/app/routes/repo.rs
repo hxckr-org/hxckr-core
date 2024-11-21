@@ -18,6 +18,7 @@ use log::error;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateRepoResponse {
     repo_name: String,
@@ -31,6 +32,7 @@ pub struct CreateRepoRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct GetRepoQuery {
+    id: Option<Uuid>,
     repo_url: Option<String>,
     soft_serve_url: Option<String>,
     status: Option<Status>,
@@ -223,7 +225,11 @@ async fn get_repo(
     query: web::Query<GetRepoQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, RepositoryError> {
-    if query.repo_url.is_some() && query.soft_serve_url.is_some() && query.status.is_some() {
+    if query.repo_url.is_some()
+        && query.soft_serve_url.is_some()
+        && query.status.is_some()
+        && query.id.is_some()
+    {
         return Err(RepositoryError::BadRequest(
             "Multiple parameters are not allowed. Please provide only one parameter.".to_string(),
         ));
@@ -242,6 +248,14 @@ async fn get_repo(
             ));
         }
     };
+
+    if let Some(id) = query.id {
+        let repository = Repository::get_repo_by_id(&mut conn, &id, &user_id).map_err(|e| {
+            error!("Error getting repository: {}", e);
+            RepositoryError::DatabaseError(e.to_string())
+        })?;
+        return Ok(HttpResponse::Ok().json(repository));
+    }
 
     let pagination = PaginationParams {
         page: query.page,

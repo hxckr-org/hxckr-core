@@ -303,4 +303,106 @@ impl Repository {
             total_pages,
         })
     }
+
+    pub fn get_repo_by_id(
+        connection: &mut PgConnection,
+        id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<RepositoryWithRelations> {
+        use crate::schema::{challenges, progress, repositories};
+
+        let result = repositories::table
+            .inner_join(challenges::table)
+            .inner_join(
+                progress::table.on(progress::user_id
+                    .eq(repositories::user_id)
+                    .and(progress::challenge_id.eq(repositories::challenge_id))),
+            )
+            .filter(repositories::user_id.eq(user_id))
+            .filter(repositories::id.eq(id))
+            .select((
+                repositories::id,
+                repositories::user_id,
+                repositories::challenge_id,
+                repositories::repo_url,
+                repositories::soft_serve_url,
+                repositories::created_at,
+                repositories::updated_at,
+                (
+                    challenges::title,
+                    challenges::description,
+                    challenges::repo_url,
+                    challenges::difficulty,
+                    challenges::module_count,
+                    challenges::mode,
+                    challenges::created_at,
+                    challenges::updated_at,
+                ),
+                (
+                    progress::id,
+                    progress::status,
+                    progress::progress_details,
+                    progress::created_at,
+                    progress::updated_at,
+                ),
+            ))
+            .first::<(
+                Uuid,
+                Uuid,
+                Uuid,
+                String,
+                String,
+                NaiveDateTime,
+                NaiveDateTime,
+                (
+                    String,
+                    String,
+                    String,
+                    String,
+                    i32,
+                    String,
+                    NaiveDateTime,
+                    NaiveDateTime,
+                ),
+                (
+                    Uuid,
+                    String,
+                    Option<serde_json::Value>,
+                    NaiveDateTime,
+                    NaiveDateTime,
+                ),
+            )>(connection)
+            .map_err(|e| {
+                error!("Error getting repository with relations: {}", e);
+                anyhow::anyhow!("Failed to get repository with relations")
+            })?;
+
+        // Transform the raw result into our nested structure
+        Ok(RepositoryWithRelations {
+            id: result.0,
+            user_id: result.1,
+            challenge_id: result.2,
+            repo_url: result.3,
+            soft_serve_url: result.4,
+            created_at: result.5,
+            updated_at: result.6,
+            challenge: ChallengeInfo {
+                title: result.7 .0,
+                description: result.7 .1,
+                repo_url: result.7 .2,
+                difficulty: result.7 .3,
+                module_count: result.7 .4,
+                mode: result.7 .5,
+                created_at: result.7 .6,
+                updated_at: result.7 .7,
+            },
+            progress: ProgressInfo {
+                id: result.8 .0,
+                status: result.8 .1,
+                progress_details: result.8 .2,
+                created_at: result.8 .3,
+                updated_at: result.8 .4,
+            },
+        })
+    }
 }

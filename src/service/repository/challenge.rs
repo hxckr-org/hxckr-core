@@ -140,12 +140,11 @@ impl Challenge {
                 FailedToGetChallenge(GetChallengeError(e)).into()
             })
     }
-
-    pub fn delete(connection: &mut PgConnection, challenge_id: &Uuid) -> Result<usize> {
+    pub fn delete(connection: &mut PgConnection, challenge_id: &Uuid) -> Result<()> {
         use crate::schema::challenges::dsl::id;
 
         match diesel::delete(challenges_table.filter(id.eq(challenge_id))).execute(connection) {
-            Ok(count) => Ok(count),
+            Ok(_) => Ok(()),
             Err(e) => {
                 error!("Error deleting challenge: {}", e);
                 Err(FailedToDeleteChallenge(DeleteChallengeError(e)).into())

@@ -107,7 +107,7 @@ pub struct Session {
     pub expires_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Insertable, Selectable, Debug, Clone)]
+#[derive(Queryable, Insertable, Selectable, Debug, Clone, Serialize)]
 #[diesel(table_name = crate::schema::leaderboard)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)]

@@ -20,11 +20,8 @@ pub fn init() -> Scope {
     web::scope("/challenge")
         .route("", web::get().to(get_challenge))
         .route("", web::post().to(create_challenge))
-<<<<<<< Updated upstream
         .route("/attempts", web::get().to(get_all_attempts))
-=======
         .route("", web::delete().to(delete_challenge))
->>>>>>> Stashed changes
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -46,16 +43,15 @@ struct GetChallengeQuery {
 }
 
 #[derive(serde::Deserialize)]
-<<<<<<< Updated upstream
 struct GetAllAttemptsQuery {
     period: Option<Period>,
     challenge_id: Option<Uuid>,
-=======
-struct DeleteChallengeQuery {
-    id: Uuid,
->>>>>>> Stashed changes
 }
 
+#[derive(serde::Deserialize)]
+struct DeleteChallengeQuery {
+    id: Uuid,
+}
 async fn create_challenge(
     req: HttpRequest,
     challenge: Result<web::Json<NewChallenge>, actix_web::Error>,
@@ -244,11 +240,15 @@ async fn get_challenge(
     Ok(challenge)
 }
 
-<<<<<<< Updated upstream
 async fn get_all_attempts(
     query: web::Query<GetAllAttemptsQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
     let period = match query.period.as_ref() {
         Some(period) => period,
         None => &Period::AllTime,
@@ -262,38 +262,32 @@ async fn get_all_attempts(
         }
     };
 
-=======
+    let attempts = Repository::get_all_repos(&mut conn, period, challenge_id)
+        .map(|attempts| HttpResponse::Ok().json(attempts))
+        .map_err(|e| match e.downcast_ref() {
+            Some(RepositoryError::FailedToGetRepository(GetRepositoryError(e))) => {
+                RepositoryError::FailedToGetRepository(GetRepositoryError(
+                    diesel::result::Error::DatabaseError(
+                        diesel::result::DatabaseErrorKind::Unknown,
+                        Box::new(e.to_string()),
+                    ),
+                ))
+            }
+            _ => RepositoryError::DatabaseError(e.to_string()).into(),
+        })?;
+    Ok(attempts)
+}
+
 async fn delete_challenge(
     req: HttpRequest,
     query: web::Query<DeleteChallengeQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
->>>>>>> Stashed changes
     let mut conn = pool.get().map_err(|e| {
         error!("Error getting db connection from pool: {}", e);
         RepositoryError::DatabaseError(e.to_string())
     })?;
 
-<<<<<<< Updated upstream
-    let attempts = Repository::get_all_repos(
-        &mut conn,
-        period,
-        challenge_id,
-    )
-    .map(|attempts| HttpResponse::Ok().json(attempts))
-    .map_err(|e| match e.downcast_ref() {
-        Some(RepositoryError::FailedToGetRepository(GetRepositoryError(e))) => {
-            RepositoryError::FailedToGetRepository(GetRepositoryError(
-                diesel::result::Error::DatabaseError(
-                    diesel::result::DatabaseErrorKind::Unknown,
-                    Box::new(e.to_string()),
-                ),
-            ))
-        }
-        _ => RepositoryError::DatabaseError(e.to_string()).into(),
-    })?;
-    Ok(attempts)
-=======
     let user_id = match req.extensions().get::<SessionInfo>() {
         Some(session_info) => session_info.user_id,
         None => {
@@ -347,5 +341,4 @@ async fn delete_challenge(
             })))
         }
     }
->>>>>>> Stashed changes
 }

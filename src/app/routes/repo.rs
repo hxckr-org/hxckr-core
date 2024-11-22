@@ -201,15 +201,18 @@ async fn create_repo(
 
     let result = conn.transaction::<_, RepositoryError, _>(
         |conn: &mut PooledConnection<ConnectionManager<PgConnection>>| {
-            if let Err(e) = Repository::create_repo(conn, repo) {
-                error!("Error creating repository in database: {:#?}", e);
-                return Err(RepositoryError::FailedToCreateRepository(
-                    CreateRepositoryError(diesel::result::Error::DatabaseError(
-                        diesel::result::DatabaseErrorKind::Unknown,
-                        Box::new(e.to_string()),
-                    )),
-                ));
-            }
+            let new_repo = match Repository::create_repo(conn, repo) {
+                Ok(repo) => repo,
+                Err(e) => {
+                    error!("Error creating repository in database: {:#?}", e);
+                    return Err(RepositoryError::FailedToCreateRepository(
+                        CreateRepositoryError(diesel::result::Error::DatabaseError(
+                            diesel::result::DatabaseErrorKind::Unknown,
+                            Box::new(e.to_string()),
+                        )),
+                    ));
+                }
+            };
 
             if let Err(e) = Progress::create_progress(conn, new_progress) {
                 error!("Error creating progress in database: {:#?}", e);
@@ -234,8 +237,9 @@ async fn create_repo(
             }
 
             Ok(HttpResponse::Ok().json(json!({
-            "repo_name": &create_repo_response.repo_name,
-            "repo_url": &create_repo_response.repo_url,
+                "repo_name": &create_repo_response.repo_name,
+                "repo_url": &create_repo_response.repo_url,
+                "id": &new_repo.id,
             })))
         },
     );

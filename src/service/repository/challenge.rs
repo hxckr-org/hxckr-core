@@ -1,10 +1,10 @@
 use crate::schema::challenges::table as challenges_table;
 use crate::service::database::models::Challenge;
-use crate::shared::errors::GetChallengeError;
 use crate::shared::errors::{
     CreateChallengeError,
-    RepositoryError::{FailedToCreateChallenge, FailedToGetChallenge},
+    RepositoryError::{FailedToCreateChallenge, FailedToDeleteChallenge, FailedToGetChallenge},
 };
+use crate::shared::errors::{DeleteChallengeError, GetChallengeError};
 use crate::shared::primitives::{ChallengeMode, Difficulty};
 use anyhow::Result;
 use diesel::prelude::*;
@@ -139,5 +139,16 @@ impl Challenge {
                 error!("Error getting challenges: {}", e);
                 FailedToGetChallenge(GetChallengeError(e)).into()
             })
+    }
+    pub fn delete(connection: &mut PgConnection, challenge_id: &Uuid) -> Result<()> {
+        use crate::schema::challenges::dsl::id;
+
+        match diesel::delete(challenges_table.filter(id.eq(challenge_id))).execute(connection) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!("Error deleting challenge: {}", e);
+                Err(FailedToDeleteChallenge(DeleteChallengeError(e)).into())
+            }
+        }
     }
 }

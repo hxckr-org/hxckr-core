@@ -1,6 +1,6 @@
 use crate::service::database::{
     conn::get_connection_pool,
-    models::{Challenge, Progress, Repository},
+    models::{Challenge, Leaderboard, Progress, Repository},
 };
 use crate::shared::primitives::Status;
 use anyhow::{Context, Result};
@@ -59,5 +59,15 @@ pub async fn update_progress(soft_serve_url: &str, user_id: &Uuid) -> Result<Pro
         "Failed to update progress for user ID: {}",
         user_id
     ))?;
+
+    // update leaderboard
+    if new_status != Status::Completed.to_str().to_string() {
+        let user_leaderboard = Leaderboard::get_leaderboard(&mut conn, Some(user_id))
+            .context("Failed to get leaderboard")?;
+
+        let new_score = user_leaderboard[0].score + 1;
+        Leaderboard::update(&mut conn, user_id, Some(new_score), None, None)
+            .context("Failed to update leaderboard")?;
+    }
     Ok(updated_progress)
 }

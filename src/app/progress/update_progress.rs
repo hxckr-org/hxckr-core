@@ -32,21 +32,18 @@ pub async fn update_progress(soft_serve_url: &str, user_id: &Uuid) -> Result<Pro
     }
 
     // check progress.progress_details object for "current_step"
-    // if current_step is equal to module_count, then set status to completed
-    // else, set current_step to current_step + 1
+    // if new_current_step is equal to module_count, then set status to completed
     let current_step = progress
         .progress_details
         .as_ref()
         .and_then(|details| details["current_step"].as_i64())
         .unwrap_or(0);
     let mut new_status = Status::InProgress.to_str().to_string();
-    let mut new_current_step = current_step;
+    let new_current_step = current_step + 1;
     let module_count = challenge.module_count as i64;
 
-    if current_step == module_count {
+    if new_current_step == module_count {
         new_status = Status::Completed.to_str().to_string();
-    } else {
-        new_current_step = current_step + 1;
     }
 
     let updated_progress = Progress::update_progress(

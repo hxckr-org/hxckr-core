@@ -4,6 +4,7 @@ use futures_util::StreamExt;
 use lapin::{options::*, types::FieldTable, Connection, ConnectionProperties};
 use log::error;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::app::{
     progress::update_progress::update_progress, repo::match_repo::match_repo_for_webhook,
@@ -173,8 +174,15 @@ async fn consume_test_queue(
                             return Err(anyhow::anyhow!("Failed to update progress"));
                         }
                     };
-                let combined_message =
-                    serde_json::to_string(&(test_runner_payload, updated_progress))?;
+                let combined_payload = json!({
+                    "event_type": test_runner_payload.event_type,
+                    "repoUrl": test_runner_payload.repo_url,
+                    "commitSha": test_runner_payload.commit_sha,
+                    "success": test_runner_payload.success,
+                    "output": test_runner_payload.output,
+                    "progress": updated_progress
+                });
+                let combined_message = serde_json::to_string(&combined_payload)?;
                 if let Err(e) = manager_handle
                     .broadcast_to_session(&session.token, Message::Text(combined_message.into()))
                     .await

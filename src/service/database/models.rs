@@ -26,7 +26,7 @@ pub struct Challenge {
     pub id: Uuid,
     pub title: String,
     pub description: String,
-    pub repo_url: String,
+    pub repo_urls: serde_json::Value,
     pub difficulty: String,
     pub module_count: i32,
     pub mode: String,
@@ -53,11 +53,11 @@ pub struct Exercise {
 #[derive(Queryable, Insertable, Selectable, Debug, Serialize, Clone)]
 #[diesel(table_name = crate::schema::progress)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)]
 pub struct Progress {
     pub id: Uuid,
     pub user_id: Uuid,
     pub challenge_id: Uuid,
+    pub repository_id: Uuid,
     pub status: String,
     pub progress_details: Option<serde_json::Value>,
     pub created_at: NaiveDateTime,
@@ -74,6 +74,7 @@ pub struct Repository {
     pub challenge_id: Uuid,
     pub repo_url: String,
     pub soft_serve_url: String,
+    pub language: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -181,6 +182,7 @@ pub struct RepositoryWithRelations {
     pub challenge_id: Uuid,
     pub repo_url: String,
     pub soft_serve_url: String,
+    pub language: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub challenge: ChallengeInfo,
@@ -198,7 +200,7 @@ pub struct AttemptInfo {
 pub struct ChallengeInfo {
     pub title: String,
     pub description: String,
-    pub repo_url: String,
+    pub repo_urls: serde_json::Value,
     pub difficulty: String,
     pub module_count: i32,
     pub mode: String,
@@ -206,7 +208,7 @@ pub struct ChallengeInfo {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Queryable, Serialize)]
+#[derive(Debug, Queryable, Serialize, Default)]
 pub struct ProgressInfo {
     pub id: Uuid,
     pub status: String,

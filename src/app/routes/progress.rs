@@ -45,7 +45,7 @@ async fn get_progress(
         RepositoryError::NotFound(format!("Repository not found with URL: {}", query.repo_url))
     })?;
 
-    let progress = Progress::get_progress(&mut conn, None, None, Some(&repo.challenge_id))
+    let progress = Progress::get_progress(&mut conn, None, None, None, Some(&repo.id))
         .map_err(|e| {
             error!("Error getting progress: {}", e);
             RepositoryError::DatabaseError(e.to_string())

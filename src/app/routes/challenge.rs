@@ -20,6 +20,7 @@ pub fn init() -> Scope {
     web::scope("/challenge")
         .route("", web::get().to(get_challenge))
         .route("", web::post().to(create_challenge))
+        .route("/{id}", web::put().to(update_challenge))
         .route("/attempts", web::get().to(get_all_attempts))
         .route("", web::delete().to(delete_challenge))
 }
@@ -31,13 +32,13 @@ struct NewChallenge {
     difficulty: Difficulty,
     module_count: i32,
     mode: ChallengeMode,
-    repo_url: String,
+    repo_urls: serde_json::Value,
 }
 
 #[derive(serde::Deserialize)]
 struct GetChallengeQuery {
     id: Option<Uuid>,
-    repo_url: Option<String>,
+    title: Option<String>,
     difficulty: Option<Difficulty>,
     mode: Option<ChallengeMode>,
 }
@@ -52,6 +53,17 @@ struct GetAllAttemptsQuery {
 struct DeleteChallengeQuery {
     id: Uuid,
 }
+
+#[derive(serde::Deserialize)]
+struct UpdateChallengeRequest {
+    title: Option<String>,
+    description: Option<String>,
+    difficulty: Option<Difficulty>,
+    module_count: Option<i32>,
+    mode: Option<ChallengeMode>,
+    repo_urls: Option<serde_json::Value>,
+}
+
 async fn create_challenge(
     req: HttpRequest,
     challenge: Result<web::Json<NewChallenge>, actix_web::Error>,
@@ -88,41 +100,44 @@ async fn create_challenge(
 
     let challenge = match challenge {
         Ok(challenge) => {
-            if challenge.title.is_empty()
-                || challenge.description.is_empty()
-                || challenge.repo_url.is_empty()
-            {
+            if challenge.title.is_empty() || challenge.description.is_empty() {
                 return Err(Error::from(RepositoryError::BadRequest(
                     "Empty fields are not allowed".to_string(),
                 )));
             }
-            // Biased assumption: Given that the starter code repo url is a github url,
-            // we can assume that it must start with https://github.com/
-            if !challenge
-                .repo_url
-                .to_lowercase()
-                .starts_with("https://github.com/")
-            {
+
+            let repo_urls = challenge.repo_urls.as_object().ok_or_else(|| {
+                RepositoryError::BadRequest("repo_urls must be a valid JSON object".to_string())
+            })?;
+
+            if repo_urls.is_empty() {
                 return Err(Error::from(RepositoryError::BadRequest(
-                    "Repo url must start with 'https://github.com/'".to_string(),
+                    "repo_urls cannot be empty".to_string(),
                 )));
             }
-            // Check if the repo url is valid
+
+            // Validate all URLs are accessible
             let client = reqwest::Client::new();
-            match client.get(&challenge.repo_url).send().await {
-                Ok(res) => {
-                    if !res.status().is_success() {
+            for (lang, url) in repo_urls {
+                let url_str = url.as_str().ok_or_else(|| {
+                    RepositoryError::BadRequest(format!("URL for {} must be a string", lang))
+                })?;
+
+                match client.get(url_str).send().await {
+                    Ok(res) if !res.status().is_success() => {
                         return Err(Error::from(RepositoryError::BadRequest(
-                            "Repo url is not valid".to_string(),
+                            format!("Repository URL for {} is not accessible", lang)
                         )));
                     }
-                }
-                Err(_) => {
-                    return Err(Error::from(RepositoryError::BadRequest(
-                        "Repo url is not valid".to_string(),
-                    )));
+                    Err(_) => {
+                        return Err(Error::from(RepositoryError::BadRequest(
+                            format!("Failed to validate repository URL for {}", lang)
+                        )));
+                    }
+                    _ => {}
                 }
             }
+
             challenge
         }
         Err(e) => return Err(Error::from(RepositoryError::BadRequest(e.to_string()))),
@@ -131,23 +146,21 @@ async fn create_challenge(
     if Challenge::get_challenge(
         &mut conn,
         None,
-        Some(&challenge.repo_url.to_lowercase()),
+        Some(&challenge.title.to_lowercase()),
         None,
         None,
-    )
-    .is_ok()
-    {
+    ).is_ok() {
         return Err(Error::from(RepositoryError::BadRequest(
-            "Challenge with this repo url already exists".to_string(),
+            "Challenge with this title already exists".to_string(),
         )));
     }
     let new_challenge = Challenge::new(
         &challenge.title.to_lowercase(),
         &challenge.description.to_lowercase(),
-        &challenge.repo_url.to_lowercase(),
+        &challenge.repo_urls,
         &challenge.module_count,
-        &challenge.difficulty,
-        &challenge.mode,
+        &challenge.difficulty.to_str(),
+        &challenge.mode.to_str(),
     );
     Ok(Challenge::create(&mut conn, new_challenge)
         .map(|challenge| {
@@ -161,7 +174,7 @@ async fn create_challenge(
                     "difficulty": challenge.difficulty,
                     "module_count": challenge.module_count,
                     "mode": challenge.mode,
-                    "repo_url": challenge.repo_url,
+                    "repo_urls": challenge.repo_urls,
                 },
             }))
         })
@@ -189,7 +202,7 @@ async fn get_challenge(
 
     // If no parameters are provided, return all challenges
     if query.id.is_none()
-        && query.repo_url.is_none()
+        && query.title.is_none()
         && query.difficulty.is_none()
         && query.mode.is_none()
     {
@@ -209,7 +222,7 @@ async fn get_challenge(
     }
 
     let param_count = query.id.is_some() as u8
-        + query.repo_url.is_some() as u8
+        + query.title.is_some() as u8
         + query.difficulty.is_some() as u8
         + query.mode.is_some() as u8;
     if param_count != 1 {
@@ -221,7 +234,7 @@ async fn get_challenge(
     let challenge = Challenge::get_challenge(
         &mut conn,
         query.id.as_ref(),
-        query.repo_url.as_deref(),
+        query.title.as_deref(),
         query.difficulty.as_ref(),
         query.mode.as_ref(),
     )
@@ -341,4 +354,91 @@ async fn delete_challenge(
             })))
         }
     }
+}
+
+async fn update_challenge(
+    req: HttpRequest,
+    id: web::Path<Uuid>,
+    body: web::Json<UpdateChallengeRequest>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    let user_id = match req.extensions().get::<SessionInfo>() {
+        Some(session_info) => session_info.user_id,
+        None => {
+            return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).json(json!({
+                "status": "error",
+                "message": "Unauthorized."
+            })));
+        }
+    };
+
+    let user = match User::get_user(&mut conn, Some(&user_id), None, None, None) {
+        Ok(user) => user,
+        Err(e) => {
+            error!("Error getting user: {}", e);
+            return Err(Error::from(RepositoryError::BadRequest(
+                "User not found".to_string(),
+            )));
+        }
+    };
+
+    if user.role != UserRole::Admin.to_str() {
+        return Ok(HttpResponse::build(StatusCode::FORBIDDEN).json(json!({
+            "status": "error",
+            "message": "Forbidden. Only admins can update challenges."
+        })));
+    }
+
+    // Validate repo_urls if provided
+    if let Some(ref repo_urls) = body.repo_urls {
+        let urls = repo_urls.as_object().ok_or_else(|| {
+            RepositoryError::BadRequest("repo_urls must be a valid JSON object".to_string())
+        })?;
+
+        if urls.is_empty() {
+            return Err(Error::from(RepositoryError::BadRequest(
+                "repo_urls cannot be empty".to_string(),
+            )));
+        }
+
+        // Validate all URLs
+        for (lang, url) in urls {
+            let url_str = url.as_str().ok_or_else(|| {
+                RepositoryError::BadRequest(format!("URL for {} must be a string", lang))
+            })?;
+
+            if !url_str.to_lowercase().starts_with("https://github.com/") {
+                return Err(Error::from(RepositoryError::BadRequest(format!(
+                    "URL for {} must start with 'https://github.com/'",
+                    lang
+                ))));
+            }
+        }
+    }
+
+    let challenge = Challenge::update(
+        &mut conn,
+        &id,
+        body.title.as_deref(),
+        body.description.as_deref(),
+        body.repo_urls.as_ref(),
+        body.module_count.as_ref(),
+        body.difficulty.as_ref(),
+        body.mode.as_ref(),
+    )
+    .map_err(|e| {
+        error!("Error updating challenge: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "success",
+        "message": "Challenge updated successfully",
+        "challenge": challenge
+    })))
 }

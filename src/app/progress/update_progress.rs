@@ -24,7 +24,7 @@ pub async fn update_progress(soft_serve_url: &str, user_id: &Uuid) -> Result<Pro
             repo.challenge_id
         ))?;
 
-    let progress = Progress::get_progress(&mut conn, None, None, Some(&challenge.id))
+    let progress = Progress::get_progress(&mut conn, None, None, None, Some(&repo.id))
         .context(format!("Failed to find progress for user ID: {}", user_id))?;
     if progress.status == Status::Completed.to_str().to_string() {
         warn!("Challenge is already completed");

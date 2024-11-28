@@ -18,14 +18,13 @@ diesel::table! {
         title -> Varchar,
         description -> Text,
         #[max_length = 255]
-        repo_url -> Varchar,
-        #[max_length = 255]
         difficulty -> Varchar,
         #[max_length = 255]
         mode -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         module_count -> Int4,
+        repo_urls -> Jsonb,
     }
 }
 
@@ -68,6 +67,7 @@ diesel::table! {
         progress_details -> Nullable<Jsonb>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        repository_id -> Uuid,
     }
 }
 
@@ -81,6 +81,8 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         soft_serve_url -> Text,
+        #[max_length = 255]
+        language -> Varchar,
     }
 }
 
@@ -143,6 +145,7 @@ diesel::table! {
 diesel::joinable!(exercises -> challenges (challenge_id));
 diesel::joinable!(leaderboard -> users (user_id));
 diesel::joinable!(progress -> challenges (challenge_id));
+diesel::joinable!(progress -> repositories (repository_id));
 diesel::joinable!(progress -> users (user_id));
 diesel::joinable!(repositories -> challenges (challenge_id));
 diesel::joinable!(repositories -> users (user_id));

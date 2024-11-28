@@ -30,6 +30,7 @@ pub struct CreateRepoResponse {
 #[derive(Deserialize)]
 pub struct CreateRepoRequest {
     repo_url: String,
+    language: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,6 +38,7 @@ pub struct GetRepoQuery {
     id: Option<Uuid>,
     repo_url: Option<String>,
     soft_serve_url: Option<String>,
+    language: Option<String>,
     status: Option<Status>,
     per_page: Option<i64>,
     page: Option<i64>,
@@ -53,18 +55,25 @@ async fn create_repo(
     body: Result<web::Json<CreateRepoRequest>, actix_web::Error>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, RepositoryError> {
-    let repo_url = match body {
-        Ok(body) => body.repo_url.clone(),
+    let body = match body {
+        Ok(body) => body,
         Err(e) => {
-            error!("Error getting repository url: {}", e);
+            error!("Error parsing request body: {}", e);
             return Err(RepositoryError::BadRequest(
-                "Repository url is required".to_string(),
+                "Invalid request body".to_string(),
             ));
         }
     };
-    if repo_url.is_empty() {
+
+    if body.repo_url.is_empty() {
         return Err(RepositoryError::BadRequest(
             "Repository url is required".to_string(),
+        ));
+    }
+
+    if body.language.is_empty() {
+        return Err(RepositoryError::BadRequest(
+            "Programming language is required".to_string(),
         ));
     }
 
@@ -96,16 +105,63 @@ async fn create_repo(
         }
     };
 
-    let challenge = match Challenge::get_challenge(&mut conn, None, Some(&repo_url), None, None) {
+    let challenge = match Challenge::get_challenge_by_repo_url(
+        &mut conn,
+        &body.repo_url,
+        &body.language.to_lowercase(),
+    ) {
         Ok(challenge) => challenge,
         Err(e) => {
             error!("Error getting challenge for repository url: {}", e);
             return Err(RepositoryError::BadRequest(format!(
-                "repository url starter code {} not found",
-                &repo_url
+                "repository url starter code {} for language {} not found",
+                &body.repo_url, &body.language
             )));
         }
     };
+
+    let repo_urls: serde_json::Map<String, serde_json::Value> = challenge
+        .repo_urls
+        .as_object()
+        .ok_or_else(|| RepositoryError::BadRequest("Invalid repo_urls format".to_string()))?
+        .clone();
+
+    let expected_repo_url = repo_urls
+        .get(&body.language.to_lowercase())
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            let supported_languages = repo_urls.keys().collect::<Vec<&String>>();
+            let languages_list = supported_languages
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>()
+                .join(", ");
+            RepositoryError::BadRequest(format!(
+                "Language {} is not supported for this challenge. Supported languages are: {}",
+                body.language, languages_list
+            ))
+        })?;
+
+    if expected_repo_url != body.repo_url {
+        return Err(RepositoryError::BadRequest(format!(
+            "Invalid repository URL for language {}. Expected: {}",
+            body.language, expected_repo_url
+        )));
+    }
+
+    let existing_repos =
+        Repository::get_repo(&mut conn, None, Some(&user_id), None, None).unwrap_or_default();
+
+    if existing_repos.len() > 0 {
+        for repo in existing_repos {
+            if repo.challenge_id == challenge.id && repo.language == body.language.to_lowercase() {
+                return Err(RepositoryError::BadRequest(format!(
+                    "You already have a repository for this challenge in {}",
+                    body.language
+                )));
+            }
+        }
+    }
 
     let leaderboard = match Leaderboard::get_leaderboard(&mut conn, Some(&user_id)) {
         Ok(leaderboard) => leaderboard[0].clone(),
@@ -115,17 +171,18 @@ async fn create_repo(
         }
     };
 
-    let repo_name = repo_url
+    let repo_name = body
+        .repo_url
         .rsplit("/")
         .next()
         .and_then(|name| if name.is_empty() { None } else { Some(name) })
         .ok_or_else(|| {
-            error!("Invalid repository URL format: {}", repo_url);
+            error!("Invalid repository URL format: {}", body.repo_url);
             RepositoryError::BadRequest("Invalid repository URL format".to_string())
         })?;
     let request_body = json!({
         "repo_name": format!("{}__{}", user.username, repo_name),
-        "repo_url": &repo_url,
+        "repo_url": &body.repo_url,
     });
     let response = client
         .post(format!("{}/create_repo", git_service_url))
@@ -182,6 +239,7 @@ async fn create_repo(
         &challenge.id,
         &create_repo_response.repo_url,
         &soft_serve_url,
+        &body.language.to_lowercase(),
     );
 
     // assign progress detail of 1 for new repositories
@@ -190,6 +248,7 @@ async fn create_repo(
     let new_progress = Progress::new(
         &user_id,
         &challenge.id,
+        &repo.id,
         Status::NotStarted,
         Some(json!({
             "current_step": 1,
@@ -297,6 +356,7 @@ async fn get_repo(
         &user_id,
         query.repo_url.as_deref(),
         query.soft_serve_url.as_deref(),
+        query.language.as_deref(),
         query.status.as_ref(),
         &pagination,
     )

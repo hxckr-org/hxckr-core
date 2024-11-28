@@ -158,52 +158,193 @@ impl Repository {
         let per_page = pagination.per_page.unwrap_or(10);
         let offset = (page - 1) * per_page;
 
-        let mut query = repositories::table
+        // Build base query
+        let base_query = repositories::table
             .inner_join(challenges::table)
-            .inner_join(
-                progress::table.on(progress::user_id
-                    .eq(repositories::user_id)
-                    .and(progress::challenge_id.eq(repositories::challenge_id))),
-            )
-            .filter(repositories::user_id.eq(user_id))
-            .into_boxed();
+            .left_join(progress::table.on(progress::repository_id.eq(repositories::id)))
+            .filter(repositories::user_id.eq(user_id));
 
-        if let Some(url) = repo_url {
-            query = query.filter(repositories::repo_url.eq(url));
+        // Build filters separately
+        let repo_filter = repo_url.map(|url| repositories::repo_url.eq(url));
+        let soft_serve_filter = soft_serve_url.map(|url| repositories::soft_serve_url.eq(url));
+        let status_filter = status.map(|s| progress::status.eq(s.to_str()));
+        let language_filter = language.map(|lang| repositories::language.eq(lang));
+
+        // Apply filters to count query
+        let mut count_query = base_query.into_boxed();
+        if let Some(f) = repo_filter {
+            count_query = count_query.filter(f);
+        }
+        if let Some(f) = soft_serve_filter {
+            count_query = count_query.filter(f);
+        }
+        if let Some(f) = status_filter {
+            count_query = count_query.filter(f);
+        }
+        if let Some(f) = language_filter {
+            count_query = count_query.filter(f);
         }
 
-        if let Some(url) = soft_serve_url {
-            query = query.filter(repositories::soft_serve_url.eq(url));
-        }
-
-        if let Some(status) = status {
-            query = query.filter(progress::status.eq(status.to_str()));
-        }
-
-        if let Some(lang) = language {
-            query = query.filter(repositories::language.eq(lang));
-        }
-
-        let total: i64 = repositories::table
-            .inner_join(challenges::table)
-            .inner_join(
-                progress::table.on(progress::user_id
-                    .eq(repositories::user_id)
-                    .and(progress::challenge_id.eq(repositories::challenge_id))),
-            )
-            .filter(repositories::user_id.eq(user_id))
-            .count()
-            .get_result(connection)
-            .map_err(|e| {
-                error!("Error getting total count: {}", e);
-                anyhow::anyhow!("Failed to get total count")
-            })?;
+        let total: i64 = count_query.count().get_result(connection)?;
 
         let total_pages = (total as f64 / per_page as f64).ceil() as i64;
 
-        let results = query
+        // Apply same filters to results query
+        let mut results_query = base_query.into_boxed();
+        if let Some(f) = repo_filter {
+            results_query = results_query.filter(f);
+        }
+        if let Some(f) = soft_serve_filter {
+            results_query = results_query.filter(f);
+        }
+        if let Some(f) = status_filter {
+            results_query = results_query.filter(f);
+        }
+        if let Some(f) = language_filter {
+            results_query = results_query.filter(f);
+        }
+
+        let results: Vec<(
+            (
+                Uuid,
+                Uuid,
+                Uuid,
+                String,
+                String,
+                String,
+                NaiveDateTime,
+                NaiveDateTime,
+            ),
+            (
+                String,
+                String,
+                serde_json::Value,
+                String,
+                i32,
+                String,
+                NaiveDateTime,
+                NaiveDateTime,
+            ),
+            Option<(
+                Uuid,
+                String,
+                Option<serde_json::Value>,
+                NaiveDateTime,
+                NaiveDateTime,
+            )>,
+        )> = results_query
             .offset(offset)
             .limit(per_page)
+            .select((
+                (
+                    repositories::id,
+                    repositories::user_id,
+                    repositories::challenge_id,
+                    repositories::repo_url,
+                    repositories::soft_serve_url,
+                    repositories::language,
+                    repositories::created_at,
+                    repositories::updated_at,
+                ),
+                (
+                    challenges::title,
+                    challenges::description,
+                    challenges::repo_urls,
+                    challenges::difficulty,
+                    challenges::module_count,
+                    challenges::mode,
+                    challenges::created_at,
+                    challenges::updated_at,
+                ),
+                (
+                    progress::id,
+                    progress::status,
+                    progress::progress_details,
+                    progress::created_at,
+                    progress::updated_at,
+                )
+                    .nullable(),
+            ))
+            .load(connection)?;
+
+        Ok(PaginatedResponse {
+            data: results
+                .into_iter()
+                .map(|(repo, challenge, progress)| RepositoryWithRelations {
+                    id: repo.0,
+                    user_id: repo.1,
+                    challenge_id: repo.2,
+                    repo_url: repo.3,
+                    soft_serve_url: repo.4,
+                    language: repo.5,
+                    created_at: repo.6,
+                    updated_at: repo.7,
+                    challenge: ChallengeInfo {
+                        title: challenge.0,
+                        description: challenge.1,
+                        repo_urls: challenge.2,
+                        difficulty: challenge.3,
+                        module_count: challenge.4,
+                        mode: challenge.5,
+                        created_at: challenge.6,
+                        updated_at: challenge.7,
+                    },
+                    progress: progress
+                        .map(|p| ProgressInfo {
+                            id: p.0,
+                            status: p.1,
+                            progress_details: p.2,
+                            created_at: p.3,
+                            updated_at: p.4,
+                        })
+                        .unwrap_or_default(),
+                })
+                .collect(),
+            total,
+            page,
+            per_page,
+            total_pages,
+        })
+    }
+
+    pub fn get_repo_by_id(
+        connection: &mut PgConnection,
+        id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<RepositoryWithRelations> {
+        use crate::schema::{challenges, progress, repositories};
+
+        let result: (
+            Uuid,
+            Uuid,
+            Uuid,
+            String,
+            String,
+            String,
+            NaiveDateTime,
+            NaiveDateTime,
+            (
+                String,
+                String,
+                serde_json::Value,
+                String,
+                i32,
+                String,
+                NaiveDateTime,
+                NaiveDateTime,
+            ),
+            Option<(
+                Uuid,
+                String,
+                Option<serde_json::Value>,
+                NaiveDateTime,
+                NaiveDateTime,
+            )>,
+        ) = repositories::table
+            .inner_join(challenges::table)
+            .left_join(progress::table.on(progress::repository_id.eq(repositories::id)))
+            .filter(repositories::user_id.eq(user_id))
+            .filter(repositories::id.eq(id))
             .select((
                 repositories::id,
                 repositories::user_id,
@@ -229,161 +370,10 @@ impl Repository {
                     progress::progress_details,
                     progress::created_at,
                     progress::updated_at,
-                ),
-            ))
-            .load::<(
-                Uuid,
-                Uuid,
-                Uuid,
-                String,
-                String,
-                String,
-                NaiveDateTime,
-                NaiveDateTime,
-                (
-                    String,
-                    String,
-                    serde_json::Value,
-                    String,
-                    i32,
-                    String,
-                    NaiveDateTime,
-                    NaiveDateTime,
-                ),
-                (
-                    Uuid,
-                    String,
-                    Option<serde_json::Value>,
-                    NaiveDateTime,
-                    NaiveDateTime,
-                ),
-            )>(connection)?;
-
-        Ok(PaginatedResponse {
-            data: results
-                .into_iter()
-                .map(
-                    |(
-                        id,
-                        user_id,
-                        challenge_id,
-                        repo_url,
-                        soft_serve_url,
-                        language,
-                        created_at,
-                        updated_at,
-                        challenge_fields,
-                        progress_fields,
-                    )| {
-                        RepositoryWithRelations {
-                            id,
-                            user_id,
-                            challenge_id,
-                            repo_url,
-                            soft_serve_url,
-                            language,
-                            created_at,
-                            updated_at,
-                            challenge: ChallengeInfo {
-                                title: challenge_fields.0,
-                                description: challenge_fields.1,
-                                repo_urls: challenge_fields.2,
-                                difficulty: challenge_fields.3,
-                                module_count: challenge_fields.4,
-                                mode: challenge_fields.5,
-                                created_at: challenge_fields.6,
-                                updated_at: challenge_fields.7,
-                            },
-                            progress: ProgressInfo {
-                                id: progress_fields.0,
-                                status: progress_fields.1,
-                                progress_details: progress_fields.2,
-                                created_at: progress_fields.3,
-                                updated_at: progress_fields.4,
-                            },
-                        }
-                    },
                 )
-                .collect(),
-            total,
-            page,
-            per_page,
-            total_pages,
-        })
-    }
-
-    pub fn get_repo_by_id(
-        connection: &mut PgConnection,
-        id: &Uuid,
-        user_id: &Uuid,
-    ) -> Result<RepositoryWithRelations> {
-        use crate::schema::{challenges, progress, repositories};
-
-        let result = repositories::table
-            .inner_join(challenges::table)
-            .inner_join(
-                progress::table.on(progress::user_id
-                    .eq(repositories::user_id)
-                    .and(progress::challenge_id.eq(repositories::challenge_id))),
-            )
-            .filter(repositories::user_id.eq(user_id))
-            .filter(repositories::id.eq(id))
-            .select((
-                repositories::id,
-                repositories::user_id,
-                repositories::challenge_id,
-                repositories::repo_url,
-                repositories::soft_serve_url,
-                repositories::created_at,
-                repositories::updated_at,
-                (
-                    challenges::title,
-                    challenges::description,
-                    challenges::repo_urls,
-                    challenges::difficulty,
-                    challenges::module_count,
-                    challenges::mode,
-                    challenges::created_at,
-                    challenges::updated_at,
-                ),
-                (
-                    progress::id,
-                    progress::status,
-                    progress::progress_details,
-                    progress::created_at,
-                    progress::updated_at,
-                ),
+                    .nullable(),
             ))
-            .first::<(
-                Uuid,
-                Uuid,
-                Uuid,
-                String,
-                String,
-                NaiveDateTime,
-                NaiveDateTime,
-                (
-                    String,
-                    String,
-                    serde_json::Value,
-                    String,
-                    i32,
-                    String,
-                    NaiveDateTime,
-                    NaiveDateTime,
-                ),
-                (
-                    Uuid,
-                    String,
-                    Option<serde_json::Value>,
-                    NaiveDateTime,
-                    NaiveDateTime,
-                ),
-            )>(connection)
-            .map_err(|e| {
-                error!("Error getting repository with relations: {}", e);
-                anyhow::anyhow!("Failed to get repository with relations")
-            })?;
+            .first(connection)?;
 
         // Transform the raw result into our nested structure
         Ok(RepositoryWithRelations {
@@ -392,26 +382,29 @@ impl Repository {
             challenge_id: result.2,
             repo_url: result.3,
             soft_serve_url: result.4,
-            created_at: result.5,
-            updated_at: result.6,
-            language: result.7 .0.clone(),
+            language: result.5,
+            created_at: result.6,
+            updated_at: result.7,
             challenge: ChallengeInfo {
-                title: result.7 .0,
-                description: result.7 .1,
-                repo_urls: result.7 .2,
-                difficulty: result.7 .3,
-                module_count: result.7 .4,
-                mode: result.7 .5,
-                created_at: result.7 .6,
-                updated_at: result.7 .7,
+                title: result.8 .0,
+                description: result.8 .1,
+                repo_urls: result.8 .2,
+                difficulty: result.8 .3,
+                module_count: result.8 .4,
+                mode: result.8 .5,
+                created_at: result.8 .6,
+                updated_at: result.8 .7,
             },
-            progress: ProgressInfo {
-                id: result.8 .0,
-                status: result.8 .1,
-                progress_details: result.8 .2,
-                created_at: result.8 .3,
-                updated_at: result.8 .4,
-            },
+            progress: result
+                .9
+                .map(|p| ProgressInfo {
+                    id: p.0,
+                    status: p.1,
+                    progress_details: p.2,
+                    created_at: p.3,
+                    updated_at: p.4,
+                })
+                .unwrap_or_default(),
         })
     }
 
@@ -449,12 +442,8 @@ impl Repository {
 
         let results = repositories::table
             .inner_join(challenges::table)
-            .inner_join(
-                progress::table.on(progress::user_id
-                    .eq(repositories::user_id)
-                    .and(progress::challenge_id.eq(repositories::challenge_id))),
-            )
-            .inner_join(users::table.on(users::id.eq(repositories::user_id)))
+            .inner_join(users::table)
+            .left_join(progress::table.on(progress::repository_id.eq(repositories::id)))
             .filter(repositories::created_at.ge(start_date))
             .filter(repositories::challenge_id.eq(challenge_id))
             .select((

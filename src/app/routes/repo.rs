@@ -248,6 +248,7 @@ async fn create_repo(
     let new_progress = Progress::new(
         &user_id,
         &challenge.id,
+        &repo.id,
         Status::NotStarted,
         Some(json!({
             "current_step": 1,

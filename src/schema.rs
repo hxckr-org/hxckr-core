@@ -67,6 +67,7 @@ diesel::table! {
         progress_details -> Nullable<Jsonb>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        repository_id -> Uuid,
     }
 }
 
@@ -144,6 +145,7 @@ diesel::table! {
 diesel::joinable!(exercises -> challenges (challenge_id));
 diesel::joinable!(leaderboard -> users (user_id));
 diesel::joinable!(progress -> challenges (challenge_id));
+diesel::joinable!(progress -> repositories (repository_id));
 diesel::joinable!(progress -> users (user_id));
 diesel::joinable!(repositories -> challenges (challenge_id));
 diesel::joinable!(repositories -> users (user_id));

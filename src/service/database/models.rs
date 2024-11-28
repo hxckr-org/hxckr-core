@@ -53,11 +53,11 @@ pub struct Exercise {
 #[derive(Queryable, Insertable, Selectable, Debug, Serialize, Clone)]
 #[diesel(table_name = crate::schema::progress)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[allow(dead_code)]
 pub struct Progress {
     pub id: Uuid,
     pub user_id: Uuid,
     pub challenge_id: Uuid,
+    pub repository_id: Uuid,
     pub status: String,
     pub progress_details: Option<serde_json::Value>,
     pub created_at: NaiveDateTime,
@@ -208,7 +208,7 @@ pub struct ChallengeInfo {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Queryable, Serialize)]
+#[derive(Debug, Queryable, Serialize, Default)]
 pub struct ProgressInfo {
     pub id: Uuid,
     pub status: String,

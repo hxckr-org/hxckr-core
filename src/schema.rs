@@ -18,14 +18,13 @@ diesel::table! {
         title -> Varchar,
         description -> Text,
         #[max_length = 255]
-        repo_url -> Varchar,
-        #[max_length = 255]
         difficulty -> Varchar,
         #[max_length = 255]
         mode -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         module_count -> Int4,
+        repo_urls -> Jsonb,
     }
 }
 
@@ -81,6 +80,8 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         soft_serve_url -> Text,
+        #[max_length = 255]
+        language -> Varchar,
     }
 }
 

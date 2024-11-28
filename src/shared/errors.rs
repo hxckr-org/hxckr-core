@@ -60,6 +60,8 @@ pub enum RepositoryError {
     FailedToGetUserBadge(#[from] GetUserBadgeError),
     #[error("Failed to delete challenge")]
     FailedToDeleteChallenge(#[from] DeleteChallengeError),
+    #[error("Failed to update challenge")]
+    FailedToUpdateChallenge(#[from] UpdateChallengeError),
 }
 
 impl From<diesel::result::Error> for RepositoryError {
@@ -172,3 +174,7 @@ pub struct GetUserBadgeError(#[from] pub diesel::result::Error);
 #[derive(Error, Debug)]
 #[error("Database error while deleting challenge: {0}")]
 pub struct DeleteChallengeError(#[from] pub diesel::result::Error);
+
+#[derive(Error, Debug)]
+#[error("Database error while updating challenge: {0}")]
+pub struct UpdateChallengeError(#[from] pub diesel::result::Error);

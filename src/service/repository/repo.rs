@@ -14,13 +14,20 @@ use log::error;
 use uuid::Uuid;
 
 impl Repository {
-    pub fn new(user_id: &Uuid, challenge_id: &Uuid, repo_url: &str, soft_serve_url: &str) -> Self {
+    pub fn new(
+        user_id: &Uuid,
+        challenge_id: &Uuid,
+        repo_url: &str,
+        soft_serve_url: &str,
+        language: &str,
+    ) -> Self {
         Repository {
             id: Uuid::new_v4(),
             user_id: user_id.to_owned(),
             challenge_id: challenge_id.to_owned(),
             repo_url: repo_url.to_string(),
             soft_serve_url: soft_serve_url.to_string(),
+            language: language.to_string(),
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         }
@@ -135,6 +142,7 @@ impl Repository {
         user_id: &Uuid,
         repo_url: Option<&str>,
         soft_serve_url: Option<&str>,
+        language: Option<&str>,
         status: Option<&Status>,
         pagination: &PaginationParams,
     ) -> Result<PaginatedResponse<RepositoryWithRelations>> {
@@ -172,6 +180,10 @@ impl Repository {
             query = query.filter(progress::status.eq(status.to_str()));
         }
 
+        if let Some(lang) = language {
+            query = query.filter(repositories::language.eq(lang));
+        }
+
         let total: i64 = repositories::table
             .inner_join(challenges::table)
             .inner_join(
@@ -193,26 +205,24 @@ impl Repository {
             .offset(offset)
             .limit(per_page)
             .select((
-                // Repository fields
                 repositories::id,
                 repositories::user_id,
                 repositories::challenge_id,
                 repositories::repo_url,
                 repositories::soft_serve_url,
+                repositories::language,
                 repositories::created_at,
                 repositories::updated_at,
-                // Challenge fields as nested struct
                 (
                     challenges::title,
                     challenges::description,
-                    challenges::repo_url,
+                    challenges::repo_urls,
                     challenges::difficulty,
                     challenges::module_count,
                     challenges::mode,
                     challenges::created_at,
                     challenges::updated_at,
                 ),
-                // Progress fields as nested struct
                 (
                     progress::id,
                     progress::status,
@@ -227,12 +237,13 @@ impl Repository {
                 Uuid,
                 String,
                 String,
+                String,
                 NaiveDateTime,
                 NaiveDateTime,
                 (
                     String,
                     String,
-                    String,
+                    serde_json::Value,
                     String,
                     i32,
                     String,
@@ -246,13 +257,8 @@ impl Repository {
                     NaiveDateTime,
                     NaiveDateTime,
                 ),
-            )>(connection)
-            .map_err(|e| {
-                error!("Error getting repository with relations: {}", e);
-                anyhow::anyhow!("Failed to get repository with relations")
-            })?;
+            )>(connection)?;
 
-        // Transform the raw results into our nested structure
         Ok(PaginatedResponse {
             data: results
                 .into_iter()
@@ -263,6 +269,7 @@ impl Repository {
                         challenge_id,
                         repo_url,
                         soft_serve_url,
+                        language,
                         created_at,
                         updated_at,
                         challenge_fields,
@@ -274,12 +281,13 @@ impl Repository {
                             challenge_id,
                             repo_url,
                             soft_serve_url,
+                            language,
                             created_at,
                             updated_at,
                             challenge: ChallengeInfo {
                                 title: challenge_fields.0,
                                 description: challenge_fields.1,
-                                repo_url: challenge_fields.2,
+                                repo_urls: challenge_fields.2,
                                 difficulty: challenge_fields.3,
                                 module_count: challenge_fields.4,
                                 mode: challenge_fields.5,
@@ -296,7 +304,7 @@ impl Repository {
                         }
                     },
                 )
-                .collect::<Vec<RepositoryWithRelations>>(),
+                .collect(),
             total,
             page,
             per_page,
@@ -331,7 +339,7 @@ impl Repository {
                 (
                     challenges::title,
                     challenges::description,
-                    challenges::repo_url,
+                    challenges::repo_urls,
                     challenges::difficulty,
                     challenges::module_count,
                     challenges::mode,
@@ -357,7 +365,7 @@ impl Repository {
                 (
                     String,
                     String,
-                    String,
+                    serde_json::Value,
                     String,
                     i32,
                     String,
@@ -386,10 +394,11 @@ impl Repository {
             soft_serve_url: result.4,
             created_at: result.5,
             updated_at: result.6,
+            language: result.7 .0.clone(),
             challenge: ChallengeInfo {
                 title: result.7 .0,
                 description: result.7 .1,
-                repo_url: result.7 .2,
+                repo_urls: result.7 .2,
                 difficulty: result.7 .3,
                 module_count: result.7 .4,
                 mode: result.7 .5,

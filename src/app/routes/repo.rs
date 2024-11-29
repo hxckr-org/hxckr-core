@@ -8,7 +8,7 @@ use crate::{
         errors::{
             CreateProgressError, CreateRepositoryError, RepositoryError, UpdateLeaderboardError,
         },
-        primitives::{PaginationParams, Status},
+        primitives::{PaginationParams, Status, UserRole},
     },
 };
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Scope};
@@ -21,6 +21,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateRepoResponse {
     repo_name: String,
@@ -44,10 +45,31 @@ pub struct GetRepoQuery {
     page: Option<i64>,
 }
 
+#[derive(Deserialize)]
+struct DeleteRepoRequest {
+    repo_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ListReposResponse {
+    repositories: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteRepoResponse {
+    repo_name: String,
+    message: String,
+}
+
 pub fn init() -> Scope {
     web::scope("/repo")
         .route("", web::post().to(create_repo))
         .route("", web::get().to(get_repo))
+        .route("/list_softserve_repo", web::get().to(list_softserve_repos))
+        .route(
+            "/delete_softserve_repo",
+            web::delete().to(delete_softserve_repo),
+        )
 }
 
 async fn create_repo(
@@ -366,4 +388,135 @@ async fn get_repo(
     })?;
 
     Ok(HttpResponse::Ok().json(repositories))
+}
+
+async fn list_softserve_repos(
+    req: HttpRequest,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, RepositoryError> {
+    let extensions = req.extensions();
+    let session_info = extensions
+        .get::<SessionInfo>()
+        .ok_or_else(|| RepositoryError::BadRequest("User not authenticated".to_string()))?;
+
+    // Get user from database to check role
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    let user =
+        User::get_user(&mut conn, Some(&session_info.user_id), None, None, None).map_err(|e| {
+            error!("Error getting user: {}", e);
+            RepositoryError::BadRequest("User not found".to_string())
+        })?;
+
+    // Check if user is admin
+    if user.role != UserRole::Admin.to_str() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "status": "error",
+            "message": "Forbidden. Only administrators can list all repositories."
+        })));
+    }
+
+    let client = reqwest::Client::new();
+    let git_service_url = std::env::var("GIT_SERVICE_URL").map_err(|_| {
+        error!("GIT_SERVICE_URL environment variable not set");
+        RepositoryError::ServerConfigurationError(
+            "GIT_SERVICE_URL environment variable not set".to_string(),
+        )
+    })?;
+
+    let response = client
+        .get(format!("{}/list_repos", git_service_url))
+        .send()
+        .await
+        .map_err(|e| {
+            error!("Error listing repositories from git service: {:#?}", e);
+            RepositoryError::BadRequest("Error listing repositories".to_string())
+        })?;
+
+    if !response.status().is_success() {
+        return Err(RepositoryError::BadRequest(
+            "Failed to list repositories".to_string(),
+        ));
+    }
+
+    let list_repos_response = response.json::<ListReposResponse>().await.map_err(|e| {
+        error!("Error parsing repository list response: {:#?}", e);
+        RepositoryError::BadRequest("Error parsing repository list".to_string())
+    })?;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "success",
+        "repositories": list_repos_response.repositories
+    })))
+}
+
+async fn delete_softserve_repo(
+    req: HttpRequest,
+    body: web::Json<DeleteRepoRequest>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, RepositoryError> {
+    let extensions = req.extensions();
+    let session_info = extensions
+        .get::<SessionInfo>()
+        .ok_or_else(|| RepositoryError::BadRequest("User not authenticated".to_string()))?;
+
+    // Get user from database to check role
+    let mut conn = pool.get().map_err(|e| {
+        error!("Error getting db connection from pool: {}", e);
+        RepositoryError::DatabaseError(e.to_string())
+    })?;
+
+    let user =
+        User::get_user(&mut conn, Some(&session_info.user_id), None, None, None).map_err(|e| {
+            error!("Error getting user: {}", e);
+            RepositoryError::BadRequest("User not found".to_string())
+        })?;
+
+    // Check if user is admin
+    if user.role != UserRole::Admin.to_str() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "status": "error",
+            "message": "Forbidden. Only administrators can delete repositories."
+        })));
+    }
+
+    let client = reqwest::Client::new();
+    let git_service_url = std::env::var("GIT_SERVICE_URL").map_err(|_| {
+        error!("GIT_SERVICE_URL environment variable not set");
+        RepositoryError::ServerConfigurationError(
+            "GIT_SERVICE_URL environment variable not set".to_string(),
+        )
+    })?;
+
+    let response = client
+        .delete(format!("{}/delete_repo", git_service_url))
+        .json(&json!({
+            "repo_name": body.repo_name
+        }))
+        .send()
+        .await
+        .map_err(|e| {
+            error!("Error deleting repository from git service: {:#?}", e);
+            RepositoryError::BadRequest("Error deleting repository".to_string())
+        })?;
+
+    if !response.status().is_success() {
+        return Err(RepositoryError::BadRequest(
+            "Failed to delete repository".to_string(),
+        ));
+    }
+
+    let delete_response = response.json::<DeleteRepoResponse>().await.map_err(|e| {
+        error!("Error parsing delete response: {:#?}", e);
+        RepositoryError::BadRequest("Error parsing delete response".to_string())
+    })?;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "success",
+        "repo_name": delete_response.repo_name,
+        "message": delete_response.message
+    })))
 }

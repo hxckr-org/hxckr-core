@@ -194,6 +194,7 @@ pub struct AttemptInfo {
     pub username: String,
     pub total_score: i32,
     pub module_count: i32,
+    pub language: String,
 }
 
 #[derive(Debug, Queryable, Serialize)]

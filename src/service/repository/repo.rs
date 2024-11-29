@@ -451,24 +451,28 @@ impl Repository {
                 users::username,
                 progress::progress_details.nullable(),
                 challenges::module_count,
+                repositories::language,
             ))
-            .load::<(Uuid, String, Option<serde_json::Value>, i32)>(connection)?;
+            .load::<(Uuid, String, Option<serde_json::Value>, i32, String)>(connection)?;
 
         Ok(results
             .into_iter()
-            .map(|(challenge_id, username, progress_details, module_count)| {
-                let total_score = progress_details
-                    .and_then(|details| details.get("current_step").cloned())
-                    .and_then(|step| step.as_i64())
-                    .unwrap_or(0) as i32;
+            .map(
+                |(challenge_id, username, progress_details, module_count, language)| {
+                    let total_score = progress_details
+                        .and_then(|details| details.get("current_step").cloned())
+                        .and_then(|step| step.as_i64())
+                        .unwrap_or(0) as i32;
 
-                AttemptInfo {
-                    challenge_id,
-                    username,
-                    total_score,
-                    module_count,
-                }
-            })
+                    AttemptInfo {
+                        challenge_id,
+                        username,
+                        total_score,
+                        module_count,
+                        language,
+                    }
+                },
+            )
             .collect())
     }
 }

@@ -133,6 +133,18 @@ pub struct NewLeaderboard {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Debug, Serialize, Clone, Queryable)]
+pub struct LeaderboardWithChallenge {
+    pub id: i32,
+    pub user_id: Uuid,
+    pub score: i32,
+    pub expected_total_score: i32,
+    pub github_username: String,
+    pub completed_challenge_count: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
 #[derive(Queryable, Insertable, Selectable, Debug)]
 #[diesel(table_name = crate::schema::badges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

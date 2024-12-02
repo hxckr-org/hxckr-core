@@ -1,5 +1,5 @@
 use crate::schema::leaderboard::table as leaderboard_table;
-use crate::service::database::models::{Leaderboard, NewLeaderboard};
+use crate::service::database::models::{Leaderboard, LeaderboardWithChallenge, NewLeaderboard};
 use crate::shared::errors::{
     CreateLeaderboardError, GetLeaderboardError,
     RepositoryError::{
@@ -48,32 +48,33 @@ impl Leaderboard {
     pub fn get_leaderboard(
         connection: &mut PgConnection,
         user_id: Option<&Uuid>,
-    ) -> Result<Vec<Leaderboard>> {
-        use crate::schema::leaderboard::dsl::user_id as user_id_col;
+    ) -> Result<Vec<LeaderboardWithChallenge>> {
+        use crate::schema::{leaderboard, users};
+        use diesel::dsl::sql;
+
+        let query = leaderboard::table
+            .inner_join(users::table)
+            .select((
+                leaderboard::id,
+                leaderboard::user_id,
+                leaderboard::score,
+                leaderboard::expected_total_score,
+                users::github_username,
+                sql::<diesel::sql_types::BigInt>(
+                    "(SELECT COUNT(*) FROM progress WHERE progress.user_id = leaderboard.user_id AND progress.status = 'completed')"
+                ),
+                leaderboard::created_at,
+                leaderboard::updated_at,
+            ));
 
         match user_id {
-            Some(user_id) => {
-                let leaderboard = leaderboard_table
-                    .filter(user_id_col.eq(user_id))
-                    .select(Leaderboard::as_select())
-                    .first::<Leaderboard>(connection)
-                    .map_err(|e| {
-                        error!("Error getting leaderboard: {}", e);
-                        FailedToGetLeaderboard(GetLeaderboardError(e))
-                    })?;
-                Ok(vec![leaderboard])
-            }
-            None => {
-                let leaderboard = leaderboard_table
-                    .select(Leaderboard::as_select())
-                    .load::<Leaderboard>(connection)
-                    .map_err(|e| {
-                        error!("Error getting leaderboard: {}", e);
-                        FailedToGetLeaderboard(GetLeaderboardError(e))
-                    })?;
-                Ok(leaderboard)
-            }
+            Some(uid) => query.filter(leaderboard::user_id.eq(uid)).first(connection).map(|r| vec![r]),
+            None => query.load(connection),
         }
+        .map_err(|e| {
+            error!("Error getting leaderboard: {}", e);
+            FailedToGetLeaderboard(GetLeaderboardError(e)).into()
+        })
     }
 
     pub fn update(
